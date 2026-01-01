@@ -306,7 +306,7 @@ export class MemoryStore {
     category: Insight['category'],
     confidence: number = 0.5
   ): Insight {
-    const id = `insight_${Date.now()}`;
+    const id = `insight_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = new Date().toISOString();
 
     this.db.prepare(`
