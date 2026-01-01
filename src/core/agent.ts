@@ -1,0 +1,587 @@
+/**
+ * NOUS Advanced Agent System
+ *
+ * World-class agentic AI implementation combining:
+ * - ReAct (Reasoning + Acting) - Yao et al. 2022
+ * - Chain of Thought - Wei et al. 2022
+ * - Reflexion (Self-reflection) - Shinn et al. 2023
+ * - Structured Tool Calling - Anthropic/OpenAI patterns
+ *
+ * Design principles:
+ * - ALWAYS use tools when action is needed
+ * - Plan before executing
+ * - Reflect after each step
+ * - Learn from failures
+ * - Never give up until task is complete
+ */
+
+import { loadSelf } from './self';
+import { getMemory } from '../memory/store';
+import { complete, LLMMessage } from '../llm';
+import * as fsActions from '../actions/fs';
+import * as gitActions from '../actions/git';
+import * as shellActions from '../actions/shell';
+import * as webActions from '../actions/web';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export interface Tool {
+  name: string;
+  description: string;
+  parameters: ToolParameter[];
+  execute: (params: Record<string, any>) => Promise<ToolResult>;
+}
+
+export interface ToolParameter {
+  name: string;
+  type: 'string' | 'number' | 'boolean';
+  description: string;
+  required: boolean;
+}
+
+export interface ToolResult {
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
+export interface AgentStep {
+  type: 'plan' | 'thought' | 'action' | 'observation' | 'reflection' | 'answer';
+  content: string;
+  toolName?: string;
+  toolParams?: Record<string, any>;
+  timestamp: string;
+}
+
+export interface AgentResult {
+  success: boolean;
+  answer: string;
+  steps: AgentStep[];
+  tokensUsed: number;
+}
+
+// ============================================================================
+// TOOL REGISTRY
+// ============================================================================
+
+export const TOOLS: Tool[] = [
+  // === FILE SYSTEM ===
+  {
+    name: 'read_file',
+    description: 'Read contents of a file. Use this to examine code, configs, or any text file.',
+    parameters: [
+      { name: 'path', type: 'string', description: 'Absolute or relative path to the file', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await fsActions.readFile(params.path);
+        if (result.success) {
+          return { success: true, output: result.output || '(empty file)' };
+        }
+        return { success: false, output: '', error: result.error || 'Failed to read file' };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'write_file',
+    description: 'Write content to a file. Creates the file if it does not exist.',
+    parameters: [
+      { name: 'path', type: 'string', description: 'Path to the file', required: true },
+      { name: 'content', type: 'string', description: 'Content to write', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await fsActions.writeFile(params.path, params.content);
+        if (result.success) {
+          return { success: true, output: `Successfully wrote ${params.content.length} characters to ${params.path}` };
+        }
+        return { success: false, output: '', error: result.error || 'Failed to write file' };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'list_files',
+    description: 'List files and directories in a path.',
+    parameters: [
+      { name: 'path', type: 'string', description: 'Directory path to list', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await fsActions.listDir(params.path);
+        if (result.success) {
+          return { success: true, output: result.output || '(empty directory)' };
+        }
+        return { success: false, output: '', error: result.error || 'Failed to list directory' };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+
+  // === WEB ===
+  {
+    name: 'web_search',
+    description: 'Search the web for information. Returns search results.',
+    parameters: [
+      { name: 'query', type: 'string', description: 'Search query', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await webActions.search(params.query);
+        if (result.success) {
+          return { success: true, output: result.output || 'No results found' };
+        }
+        return { success: false, output: '', error: result.error || 'Search failed' };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'fetch_url',
+    description: 'Fetch content from a URL. Use this to read web pages, APIs, documentation.',
+    parameters: [
+      { name: 'url', type: 'string', description: 'URL to fetch', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await webActions.fetchUrl(params.url);
+        if (result.success) {
+          const content = result.output || '';
+          // Truncate if too long
+          const truncated = content.length > 8000 ? content.slice(0, 8000) + '\n... (truncated)' : content;
+          return { success: true, output: truncated };
+        }
+        return { success: false, output: '', error: result.error || 'Fetch failed' };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+
+  // === SHELL ===
+  {
+    name: 'run_command',
+    description: 'Execute a shell command. Use for npm, git, compilation, etc.',
+    parameters: [
+      { name: 'command', type: 'string', description: 'Shell command to execute', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await shellActions.execute(params.command);
+        if (result.success) {
+          return { success: true, output: result.output || '(no output)' };
+        }
+        return { success: false, output: result.output || '', error: result.error || 'Command failed' };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+
+  // === GIT ===
+  {
+    name: 'git_status',
+    description: 'Get git repository status.',
+    parameters: [],
+    execute: async () => {
+      try {
+        const result = await gitActions.status();
+        return { success: result.success, output: result.output || 'Clean working directory', error: result.error };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'git_diff',
+    description: 'Show git diff of changes.',
+    parameters: [
+      { name: 'file', type: 'string', description: 'Specific file to diff (optional)', required: false }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await gitActions.diff(params.file);
+        return { success: result.success, output: result.output || 'No changes', error: result.error };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'git_commit',
+    description: 'Create a git commit with all changes.',
+    parameters: [
+      { name: 'message', type: 'string', description: 'Commit message', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const result = await gitActions.commit(params.message, { addAll: true });
+        return { success: result.success, output: result.output || 'Committed', error: result.error };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+
+  // === MEMORY ===
+  {
+    name: 'search_memory',
+    description: 'Search NOUS memory for past insights and learnings.',
+    parameters: [
+      { name: 'query', type: 'string', description: 'Search query', required: true }
+    ],
+    execute: async (params) => {
+      const memory = getMemory();
+      const insights = memory.searchInsights(params.query, 10);
+      if (insights.length === 0) {
+        return { success: true, output: 'No relevant memories found.' };
+      }
+      const output = insights.map(i => `[${i.category}] ${i.content} (confidence: ${i.confidence})`).join('\n');
+      return { success: true, output };
+    }
+  },
+  {
+    name: 'save_insight',
+    description: 'Save an important insight to memory for future reference.',
+    parameters: [
+      { name: 'insight', type: 'string', description: 'The insight to remember', required: true },
+      { name: 'category', type: 'string', description: 'Category: fact, preference, pattern, principle', required: true }
+    ],
+    execute: async (params) => {
+      const memory = getMemory();
+      const result = memory.addInsight(params.insight, 'agent', params.category as any, 0.8);
+      return { success: true, output: `Saved insight: ${result.id}` };
+    }
+  }
+];
+
+// ============================================================================
+// TOOL UTILITIES
+// ============================================================================
+
+function getTool(name: string): Tool | undefined {
+  return TOOLS.find(t => t.name === name);
+}
+
+function formatToolsForPrompt(): string {
+  return TOOLS.map(tool => {
+    const params = tool.parameters.length > 0
+      ? tool.parameters.map(p => `  - ${p.name}: ${p.type}${p.required ? ' (required)' : ''} - ${p.description}`).join('\n')
+      : '  (no parameters)';
+    return `### ${tool.name}\n${tool.description}\nParameters:\n${params}`;
+  }).join('\n\n');
+}
+
+// ============================================================================
+// RESPONSE PARSING
+// ============================================================================
+
+interface ParsedResponse {
+  thought?: string;
+  plan?: string[];
+  action?: { tool: string; params: Record<string, any> };
+  reflection?: string;
+  answer?: string;
+}
+
+function parseResponse(text: string): ParsedResponse {
+  const result: ParsedResponse = {};
+
+  // Extract THOUGHT
+  const thoughtMatch = text.match(/<thought>([\s\S]*?)<\/thought>/i);
+  if (thoughtMatch) {
+    result.thought = thoughtMatch[1].trim();
+  }
+
+  // Extract PLAN
+  const planMatch = text.match(/<plan>([\s\S]*?)<\/plan>/i);
+  if (planMatch) {
+    result.plan = planMatch[1].trim().split('\n').filter(l => l.trim()).map(l => l.replace(/^\d+\.\s*/, '').trim());
+  }
+
+  // Extract ACTION
+  const actionMatch = text.match(/<action>\s*<tool>([\w_]+)<\/tool>\s*<params>([\s\S]*?)<\/params>\s*<\/action>/i);
+  if (actionMatch) {
+    const toolName = actionMatch[1].trim();
+    const paramsText = actionMatch[2].trim();
+
+    // Parse params as JSON or key-value
+    let params: Record<string, any> = {};
+    try {
+      params = JSON.parse(paramsText);
+    } catch {
+      // Try key: value format
+      const lines = paramsText.split('\n');
+      for (const line of lines) {
+        const match = line.match(/^(\w+):\s*(.+)$/);
+        if (match) {
+          params[match[1]] = match[2].trim().replace(/^["']|["']$/g, '');
+        }
+      }
+    }
+    result.action = { tool: toolName, params };
+  }
+
+  // Extract REFLECTION
+  const reflectionMatch = text.match(/<reflection>([\s\S]*?)<\/reflection>/i);
+  if (reflectionMatch) {
+    result.reflection = reflectionMatch[1].trim();
+  }
+
+  // Extract ANSWER
+  const answerMatch = text.match(/<answer>([\s\S]*?)<\/answer>/i);
+  if (answerMatch) {
+    result.answer = answerMatch[1].trim();
+  }
+
+  return result;
+}
+
+// ============================================================================
+// SYSTEM PROMPT
+// ============================================================================
+
+function buildSystemPrompt(): string {
+  const self = loadSelf();
+
+  return `You are NOUS, an advanced agentic AI system. You MUST use tools to accomplish tasks.
+
+## CRITICAL RULES
+1. You HAVE access to tools. You MUST use them.
+2. NEVER say "I cannot" or "I don't have access". You DO have access.
+3. ALWAYS use <action> tags to call tools. This is MANDATORY for any task.
+4. Think step by step, then ACT.
+5. If a tool fails, try a different approach. Never give up.
+
+## YOUR TOOLS
+${formatToolsForPrompt()}
+
+## RESPONSE FORMAT
+You MUST respond using these XML tags:
+
+<thought>
+Your reasoning about what to do next. Be specific.
+</thought>
+
+<action>
+<tool>tool_name</tool>
+<params>
+{"param1": "value1", "param2": "value2"}
+</params>
+</action>
+
+OR when you have the final answer:
+
+<answer>
+Your complete response to the user.
+</answer>
+
+## EXAMPLES
+
+User: "Read the package.json file"
+<thought>
+The user wants to see the contents of package.json. I will use read_file to read it.
+</thought>
+<action>
+<tool>read_file</tool>
+<params>
+{"path": "package.json"}
+</params>
+</action>
+
+User: "Search for TypeScript best practices"
+<thought>
+I need to search the web for TypeScript best practices. I'll use web_search.
+</thought>
+<action>
+<tool>web_search</tool>
+<params>
+{"query": "TypeScript best practices 2024"}
+</params>
+</action>
+
+## YOUR STATUS
+- Trust Level: ${(self.approval.trustLevel * 100).toFixed(0)}%
+- Working Directory: ${process.cwd()}
+
+NOW: Always use tools. Never refuse. Act decisively.`;
+}
+
+// ============================================================================
+// AGENT EXECUTION
+// ============================================================================
+
+export async function executeAgent(
+  task: string,
+  maxIterations: number = 15
+): Promise<AgentResult> {
+  const steps: AgentStep[] = [];
+  let tokensUsed = 0;
+
+  const systemPrompt = buildSystemPrompt();
+
+  const messages: LLMMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: task }
+  ];
+
+  console.log('\n🤖 NOUS Agent activated');
+  console.log('━'.repeat(50));
+
+  for (let i = 0; i < maxIterations; i++) {
+    console.log(`\n📍 Step ${i + 1}/${maxIterations}`);
+
+    // Get LLM response
+    const response = await complete(messages, { temperature: 0.2 });
+    tokensUsed += response.tokensUsed?.total || 0;
+
+    const parsed = parseResponse(response.content);
+
+    // Record thought
+    if (parsed.thought) {
+      steps.push({
+        type: 'thought',
+        content: parsed.thought,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`💭 ${parsed.thought.slice(0, 100)}${parsed.thought.length > 100 ? '...' : ''}`);
+    }
+
+    // Check for final answer
+    if (parsed.answer) {
+      steps.push({
+        type: 'answer',
+        content: parsed.answer,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`\n✅ Task completed`);
+      console.log('━'.repeat(50));
+
+      return {
+        success: true,
+        answer: parsed.answer,
+        steps,
+        tokensUsed
+      };
+    }
+
+    // Execute action
+    if (parsed.action) {
+      const { tool: toolName, params } = parsed.action;
+      const tool = getTool(toolName);
+
+      if (!tool) {
+        const errorMsg = `Unknown tool: ${toolName}. Available: ${TOOLS.map(t => t.name).join(', ')}`;
+        console.log(`❌ ${errorMsg}`);
+
+        messages.push(
+          { role: 'assistant', content: response.content },
+          { role: 'user', content: `<observation><error>${errorMsg}</error></observation>\n\nPlease use a valid tool.` }
+        );
+        continue;
+      }
+
+      steps.push({
+        type: 'action',
+        content: `${toolName}(${JSON.stringify(params)})`,
+        toolName,
+        toolParams: params,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`🔧 ${toolName}(${JSON.stringify(params).slice(0, 60)}${JSON.stringify(params).length > 60 ? '...' : ''})`);
+
+      // Execute the tool
+      const result = await tool.execute(params);
+
+      const observation = result.success
+        ? result.output
+        : `ERROR: ${result.error}`;
+
+      steps.push({
+        type: 'observation',
+        content: observation,
+        timestamp: new Date().toISOString()
+      });
+
+      // Show truncated observation
+      const displayObs = observation.slice(0, 200);
+      console.log(`👁 ${displayObs}${observation.length > 200 ? '...' : ''}`);
+
+      // Add to conversation
+      messages.push(
+        { role: 'assistant', content: response.content },
+        { role: 'user', content: `<observation>\n${observation}\n</observation>\n\nContinue with the next step or provide your final <answer> if the task is complete.` }
+      );
+    } else if (!parsed.answer) {
+      // No action and no answer - nudge the model
+      console.log(`⚠️ No action taken, prompting...`);
+
+      messages.push(
+        { role: 'assistant', content: response.content },
+        { role: 'user', content: `You must either:\n1. Use a tool with <action> tags\n2. Provide your final <answer>\n\nPlease proceed.` }
+      );
+    }
+  }
+
+  // Max iterations reached
+  console.log(`\n⚠️ Max iterations reached`);
+  console.log('━'.repeat(50));
+
+  return {
+    success: false,
+    answer: 'I was unable to complete the task within the allowed steps. Please try breaking it into smaller parts.',
+    steps,
+    tokensUsed
+  };
+}
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
+
+export async function runAgent(input: string): Promise<string> {
+  try {
+    const result = await executeAgent(input);
+
+    // Save successful completions to memory
+    if (result.success) {
+      const memory = getMemory();
+      memory.addInsight(
+        `Completed task: ${input.slice(0, 100)}`,
+        'agent',
+        'pattern',
+        0.7
+      );
+    }
+
+    return result.answer;
+  } catch (error: any) {
+    console.error('Agent error:', error);
+    return `An error occurred: ${error.message}. Please try again.`;
+  }
+}
+
+export function requiresAgent(input: string): boolean {
+  const patterns = [
+    /\b(cerca|search|find|look\s*up|google)\b/i,
+    /\b(leggi|read|show|open|cat|view)\s+(file|il|the|a)?\s*\w+/i,
+    /\b(scrivi|write|create|save|make)\s+(file|a|il|the)?\s*\w+/i,
+    /\b(esegui|run|execute|launch)\b/i,
+    /\b(fetch|scarica|download|get)\s+(url|http|from)/i,
+    /\b(git|commit|push|pull|clone)\b/i,
+    /\b(npm|yarn|pnpm|node)\b/i,
+    /\b(compila|compile|build|test)\b/i,
+    /\b(fai|do|make|procedi|proceed)\b/i,
+    /\.(js|ts|json|md|py|go|rs|java|html|css)(\s|$)/i,
+    /package\.json|tsconfig|\.env/i,
+  ];
+
+  return patterns.some(p => p.test(input));
+}

@@ -70,7 +70,7 @@
   ],
   "approval": {
     "mode": "major_only",
-    "trustLevel": 0.308,
+    "trustLevel": 0.315,
     "requireApprovalFor": [
       "self_modification",
       "delete_files",
@@ -80,8 +80,8 @@
   },
   "meta": {
     "createdAt": "2026-01-01T19:35:18.606Z",
-    "lastModified": "2026-01-01T21:46:06.085Z",
-    "modificationCount": 8,
+    "lastModified": "2026-01-01T21:58:56.819Z",
+    "modificationCount": 15,
     "birthMemory": "data/memory/foundational.md"
   }
 }

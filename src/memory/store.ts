@@ -164,7 +164,7 @@ export class MemoryStore {
    * Start a new session
    */
   startSession(): Session {
-    const id = `session_${Date.now()}`;
+    const id = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const startedAt = new Date().toISOString();
 
     this.db.prepare(`
@@ -398,7 +398,7 @@ export class MemoryStore {
    * Create a project
    */
   createProject(name: string, description: string): Project {
-    const id = `project_${Date.now()}`;
+    const id = `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const now = new Date().toISOString();
 
     this.db.prepare(`
@@ -458,7 +458,7 @@ export class MemoryStore {
     approved: boolean,
     approvedBy?: string
   ): SelfModification {
-    const id = `mod_${Date.now()}`;
+    const id = `mod_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const timestamp = new Date().toISOString();
 
     this.db.prepare(`

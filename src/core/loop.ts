@@ -17,6 +17,7 @@ import { AXIOMS, validateModification } from './axioms';
 import { getMemory, MemoryStore, Message, Session } from '../memory/store';
 import { complete, evaluate as llmEvaluate, summarizeConversation, LLMMessage } from '../llm';
 import { executeAction, listActions } from '../actions';
+import { runAgent, requiresAgent } from './agent';
 
 /**
  * Loop state
@@ -204,13 +205,22 @@ async function act(
   // Add user message to history
   state.messages.push({ role: 'user', content: input });
 
-  // Generate response using LLM
-  const response = await complete(state.messages);
+  let responseContent: string;
+
+  // Check if this requires agent mode (tool use)
+  if (requiresAgent(input) || evaluation.suggestedActions.length > 0) {
+    // Use agent for tasks that require tools
+    responseContent = await runAgent(input);
+  } else {
+    // Regular conversation
+    const response = await complete(state.messages);
+    responseContent = response.content;
+  }
 
   // Add assistant response to history
-  state.messages.push({ role: 'assistant', content: response.content });
+  state.messages.push({ role: 'assistant', content: responseContent });
 
-  return response.content;
+  return responseContent;
 }
 
 /**
