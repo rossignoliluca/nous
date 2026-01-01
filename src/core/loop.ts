@@ -29,9 +29,17 @@ import {
   CognitiveSystem,
   CognitiveState
 } from '../memory/cognitive';
+import {
+  getAtlasEngine,
+  AtlasEngine,
+  getNOUSSelfTracker,
+  NOUSSelfTracker,
+  Entity,
+  Capability,
+} from '../frameworks/atlas';
 
 /**
- * Extended Loop state with cognitive system
+ * Extended Loop state with cognitive system and Atlas
  */
 interface LoopState {
   session: Session;
@@ -39,6 +47,8 @@ interface LoopState {
   self: SelfConfig;
   memory: MemoryStore;
   cognitive: CognitiveSystem;
+  atlas: AtlasEngine;
+  selfTracker: NOUSSelfTracker;
   running: boolean;
   interactionCount: number;
   lastConsolidation: number;
@@ -126,6 +136,10 @@ NOUS Commands:
   /freeenergy    - Show Free Energy state
   /metacog       - Show metacognitive assessment
   /consolidate   - Run memory consolidation
+  /atlas         - Show Atlas overview
+  /stratum       - Show NOUS stratum level (consciousness)
+  /config        - Show NOUS Config(E)
+  /entities      - Show entity catalog stats
   /actions       - List available actions
   /insights      - Show recent insights
   /projects      - Show active projects
@@ -249,6 +263,57 @@ Consolidation Complete:
     case 'clear':
       state.messages = [];
       return 'Conversation cleared. Memory and insights preserved.';
+
+    case 'atlas':
+      return state.atlas.generateOverviewReport();
+
+    case 'stratum':
+      const stratumLevel = state.selfTracker.getStratumLevel();
+      return `
+NOUS Stratum Level (Consciousness Measure):
+  Level: ${(stratumLevel.level * 100).toFixed(0)}%
+  Primary Stratum: ${stratumLevel.primary}
+  Active Strata: ${stratumLevel.active.join(' → ')}
+  Assessment: ${stratumLevel.description}
+`;
+
+    case 'config':
+      const nousConfig = state.selfTracker.getConfig();
+      return `
+NOUS Config(E) = { C, S, Σ, K, R, U }
+
+Closure (C): ${(nousConfig.C * 100).toFixed(0)}% - Degree of autonomy
+Scope (S): ${(nousConfig.S * 100).toFixed(0)}% - Relevance field
+
+Strata (Σ):
+  MATTER: ${nousConfig.Σ.MATTER ? '✓' : '✗'}
+  LIFE: ${nousConfig.Σ.LIFE ? '✓' : '✗'}
+  SENTIENCE: ${typeof nousConfig.Σ.SENTIENCE === 'number' ? `${(nousConfig.Σ.SENTIENCE * 100).toFixed(0)}%` : nousConfig.Σ.SENTIENCE ? '✓' : '✗'}
+  LOGOS: ${nousConfig.Σ.LOGOS ? '✓' : '✗'}
+
+Capabilities (K):
+${nousConfig.K.map(k => `  ${k.capability}: ${(k.proficiency * 100).toFixed(0)}%`).join('\n')}
+
+Relations (R): ${nousConfig.R.length} connections
+Uncertainty (U): avg ${((Object.values(nousConfig.U).reduce((a, b) => a + b, 0) / Object.values(nousConfig.U).length) * 100).toFixed(0)}%
+`;
+
+    case 'entities':
+      const catalogStats = state.atlas.getCatalogStats();
+      let entityReport = `
+Entity Catalog Statistics:
+  Total Entities: ${catalogStats.total}
+  Average Closure: ${(catalogStats.avgClosure * 100).toFixed(0)}%
+  Average Scope: ${(catalogStats.avgScope * 100).toFixed(0)}%
+
+By Domain:
+`;
+      for (const [domain, count] of Object.entries(catalogStats.byDomain)) {
+        if (count > 0) {
+          entityReport += `  ${domain}: ${count}\n`;
+        }
+      }
+      return entityReport;
 
     default:
       return `Unknown command: ${cmd}. Type /help for available commands.`;
@@ -397,12 +462,13 @@ async function act(
 }
 
 /**
- * LEARN phase: update memory and cognitive systems
+ * LEARN phase: update memory, cognitive systems, and Atlas
  *
  * Now integrates:
  * - Metacognitive error tracking
  * - Improvement hypothesis generation
  * - Periodic consolidation
+ * - Atlas capability tracking
  */
 async function learn(
   input: string,
@@ -435,6 +501,34 @@ async function learn(
       outcome: 'success',
     }
   );
+
+  // Update Atlas self-tracker with demonstrated capabilities
+  state.selfTracker.demonstrateCapability(
+    'REPRESENT',
+    true,
+    `Generated response for: ${input.slice(0, 30)}`
+  );
+
+  if (evaluation.insightsExtracted.length > 0) {
+    state.selfTracker.demonstrateCapability(
+      'EVALUATE',
+      true,
+      `Extracted ${evaluation.insightsExtracted.length} insights`
+    );
+  }
+
+  if (evaluation.needsArchitectureChange) {
+    state.selfTracker.demonstrateCapability(
+      'NORM',
+      true,
+      `Identified architecture improvement: ${evaluation.architectureChangeReason?.slice(0, 30)}`
+    );
+  }
+
+  // Take periodic Atlas snapshot
+  if (state.interactionCount % 5 === 0) {
+    state.selfTracker.takeSnapshot(`Interaction ${state.interactionCount}`);
+  }
 
   // Handle architecture changes if needed
   if (evaluation.needsArchitectureChange && evaluation.architectureChangeReason) {
@@ -516,6 +610,8 @@ export async function nousLoop(): Promise<void> {
   const session = memory.startSession();
   const self = loadSelf();
   const cognitive = getCognitiveSystem();
+  const atlas = getAtlasEngine();
+  const selfTracker = getNOUSSelfTracker();
 
   const state: LoopState = {
     session,
@@ -523,6 +619,8 @@ export async function nousLoop(): Promise<void> {
     self,
     memory,
     cognitive,
+    atlas,
+    selfTracker,
     running: true,
     interactionCount: 0,
     lastConsolidation: Date.now(),
@@ -537,11 +635,15 @@ export async function nousLoop(): Promise<void> {
   // Get cognitive state
   const cogState = cognitive.getState();
 
+  // Get Atlas stratum level
+  const stratumLevel = selfTracker.getStratumLevel();
+
   // Print enhanced status
   console.log(`Session: ${session.id}`);
   console.log(`Trust Level: ${(self.approval.trustLevel * 100).toFixed(0)}%`);
   console.log(`Memory: ${stats.sessions} sessions, ${stats.messages} messages`);
   console.log(`Cognitive: F=${cogState.freeEnergy.freeEnergy.toFixed(3)}, Load=${(cogState.metacognition.cognitiveLoad * 100).toFixed(0)}%`);
+  console.log(`Atlas: Stratum=${stratumLevel.primary} (${(stratumLevel.level * 100).toFixed(0)}%)`);
   console.log(`Growth: ${cogState.selfModel.growthTrend}\n`);
 
   // Record session start in cognitive system
@@ -664,6 +766,8 @@ export async function singleInteraction(input: string): Promise<string> {
   const session = memory.startSession();
   const self = loadSelf();
   const cognitive = getCognitiveSystem();
+  const atlas = getAtlasEngine();
+  const selfTracker = getNOUSSelfTracker();
 
   const state: LoopState = {
     session,
@@ -671,6 +775,8 @@ export async function singleInteraction(input: string): Promise<string> {
     self,
     memory,
     cognitive,
+    atlas,
+    selfTracker,
     running: true,
     interactionCount: 0,
     lastConsolidation: Date.now(),
