@@ -22,6 +22,7 @@ import * as fsActions from '../actions/fs';
 import * as gitActions from '../actions/git';
 import * as shellActions from '../actions/shell';
 import * as webActions from '../actions/web';
+import { getCognitiveSystem } from '../memory/cognitive';
 
 // ============================================================================
 // TYPES
@@ -259,6 +260,96 @@ export const TOOLS: Tool[] = [
       const result = memory.addInsight(params.insight, 'agent', params.category as any, 0.8);
       return { success: true, output: `Saved insight: ${result.id}` };
     }
+  },
+
+  // === COGNITIVE SYSTEM ===
+  {
+    name: 'cognitive_status',
+    description: 'Get NOUS cognitive system status - metacognition, self-model, memory state, and improvement suggestions.',
+    parameters: [],
+    execute: async () => {
+      try {
+        const cognitive = getCognitiveSystem();
+        const state = cognitive.getState();
+
+        const output = `
+=== COGNITIVE STATUS ===
+
+GLOBAL WORKSPACE:
+  Items in focus: ${state.workspace.items.length}
+  Active goals: ${state.workspace.activeGoals}
+
+MEMORY:
+  Recent episodes: ${state.memory.recentEpisodes}
+  Unconsolidated: ${state.memory.unconsolidated}
+  Semantic concepts: ${state.memory.semanticConcepts}
+
+METACOGNITION:
+  Cognitive load: ${(state.metacognition.cognitiveLoad * 100).toFixed(0)}%
+  Confidence calibration: ${(state.metacognition.confidenceCalibration * 100).toFixed(0)}%
+  Current focus: ${state.metacognition.attentionalFocus || '(none)'}
+  Known items: ${state.metacognition.knowledgeInventory.known.length}
+  Uncertain: ${state.metacognition.knowledgeInventory.uncertain.length}
+
+FREE ENERGY:
+  Current F: ${state.freeEnergy.freeEnergy.toFixed(3)}
+  Model confidence: ${(state.freeEnergy.generativeModelConfidence * 100).toFixed(0)}%
+
+SELF-MODEL:
+  Health: ${(state.selfModel.health * 100).toFixed(0)}%
+  Capabilities: ${state.selfModel.capabilities}
+  Growth trend: ${state.selfModel.growthTrend}
+
+SCIENTIFIC KNOWLEDGE:
+  Concepts: ${state.scientificKnowledge.concepts}
+  Hypotheses: ${state.scientificKnowledge.hypotheses}
+`;
+        return { success: true, output };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'get_improvement_suggestions',
+    description: 'Get AI-generated suggestions for how NOUS can improve itself based on scientific knowledge.',
+    parameters: [],
+    execute: async () => {
+      try {
+        const cognitive = getCognitiveSystem();
+        const suggestions = await cognitive.generateImprovementSuggestions();
+
+        if (suggestions.length === 0) {
+          return { success: true, output: 'No improvement suggestions at this time.' };
+        }
+
+        const output = suggestions.map((s, i) =>
+          `${i + 1}. ${s.suggestion}\n   Basis: ${s.scientificBasis}\n   Benefit: ${s.expectedBenefit}\n   Priority: ${(s.priority * 100).toFixed(0)}%`
+        ).join('\n\n');
+
+        return { success: true, output: `=== IMPROVEMENT SUGGESTIONS ===\n\n${output}` };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'run_consolidation',
+    description: 'Run memory consolidation - transfers episodic memories to semantic knowledge.',
+    parameters: [],
+    execute: async () => {
+      try {
+        const cognitive = getCognitiveSystem();
+        const result = await cognitive.runConsolidation();
+
+        return {
+          success: true,
+          output: `Memory consolidation complete:\n- Episodes consolidated: ${result.episodesConsolidated}\n- Concepts learned: ${result.conceptsLearned}\n- Decayed memories: ${result.decayedMemories}`
+        };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
   }
 ];
 
@@ -425,6 +516,15 @@ export async function executeAgent(
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
 
+  // Initialize cognitive system
+  const cognitive = getCognitiveSystem();
+
+  // Record task as cognitive experience
+  await cognitive.processExperience(`Starting task: ${task}`, {
+    significance: 0.7,
+    emotional: 'focused',
+  });
+
   const systemPrompt = buildSystemPrompt();
 
   const messages: LLMMessage[] = [
@@ -461,6 +561,14 @@ export async function executeAgent(
         content: parsed.answer,
         timestamp: new Date().toISOString()
       });
+
+      // Record successful completion
+      await cognitive.processExperience(`Completed task: ${task.slice(0, 50)}`, {
+        significance: 0.8,
+        emotional: 'satisfied',
+        outcome: 'success',
+      });
+
       console.log(`\n✅ Task completed`);
       console.log('━'.repeat(50));
 
@@ -499,6 +607,13 @@ export async function executeAgent(
 
       // Execute the tool
       const result = await tool.execute(params);
+
+      // Record action in cognitive system
+      cognitive.recordAction(
+        `${toolName}(${JSON.stringify(params).slice(0, 50)})`,
+        result.success ? result.output.slice(0, 100) : `Error: ${result.error}`,
+        result.success
+      );
 
       const observation = result.success
         ? result.output
