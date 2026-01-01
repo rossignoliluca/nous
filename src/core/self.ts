@@ -68,6 +68,16 @@ export interface SelfConfig {
     modificationCount: number;
     birthMemory: string; // Path to foundational transcript
   };
+
+  /** Daemon configuration (optional) */
+  daemon?: {
+    enabled: boolean;
+    intervalMinutes: number;
+    autoImprove: boolean;
+    maxImprovementsPerCycle: number;
+    logFile: string;
+    pidFile: string;
+  };
 }
 
 /**

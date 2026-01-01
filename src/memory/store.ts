@@ -41,7 +41,7 @@ export interface Insight {
   id: string;
   content: string;
   source: string; // session_id or 'foundational'
-  category: 'fact' | 'preference' | 'pattern' | 'principle' | 'entity';
+  category: 'fact' | 'preference' | 'pattern' | 'principle' | 'entity' | 'self_modification';
   confidence: number;
   createdAt: string;
   lastReferencedAt?: string;

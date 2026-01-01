@@ -35,6 +35,8 @@ import { nousLoop } from './core/loop';
 import { loadSelf, printSelfStatus, saveSelf } from './core/self';
 import { getMemory } from './memory/store';
 import { AXIOMS } from './core/axioms';
+import { selfImprovementCycle, analyzeForImprovements, proposeImprovement } from './core/improve';
+import { startDaemon, stopDaemon, getDaemonStatus, runOnce } from './core/daemon';
 
 const program = new Command();
 
@@ -215,6 +217,85 @@ program
       const [key, value] = options.edit.split('=');
       console.log(`Would edit ${key} = ${value}`);
       console.log('(Configuration editing via CLI not yet implemented)');
+    }
+  });
+
+// Self-improvement commands
+program
+  .command('improve')
+  .description('Self-improvement operations')
+  .option('-a, --analyze', 'Analyze codebase for potential improvements')
+  .option('-r, --run [goal]', 'Run self-improvement cycle')
+  .option('-p, --propose <description>', 'Propose a specific improvement')
+  .action(async (options) => {
+    // Check for API key
+    if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+      console.error('Error: No API key found.');
+      process.exit(1);
+    }
+
+    if (options.analyze) {
+      console.log('\n🔍 Analyzing codebase for improvements...\n');
+      const suggestions = await analyzeForImprovements();
+      console.log('Potential improvements:');
+      suggestions.forEach((s, i) => console.log(`${i + 1}. ${s}`));
+    } else if (options.run !== undefined) {
+      const goal = typeof options.run === 'string' ? options.run : undefined;
+      await selfImprovementCycle(goal);
+    } else if (options.propose) {
+      console.log(`\n📝 Proposing improvement: ${options.propose}\n`);
+      const proposal = await proposeImprovement(options.propose);
+      console.log('Proposal created:');
+      console.log(`  ID: ${proposal.id}`);
+      console.log(`  Risk: ${proposal.risk}`);
+      console.log(`  Requires Approval: ${proposal.requiresApproval}`);
+      console.log(`  Changes: ${proposal.changes.length} files`);
+    } else {
+      console.log('Use --analyze, --run, or --propose <description>');
+    }
+  });
+
+// Daemon commands
+program
+  .command('daemon')
+  .description('Background daemon operations')
+  .argument('<action>', 'start, stop, status, or once')
+  .action(async (action) => {
+    switch (action) {
+      case 'start':
+        // Check for API key
+        if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+          console.error('Error: No API key found.');
+          process.exit(1);
+        }
+        await startDaemon();
+        break;
+
+      case 'stop':
+        stopDaemon();
+        break;
+
+      case 'status':
+        const status = getDaemonStatus();
+        console.log('\nNOUS Daemon Status:');
+        console.log(`  Running: ${status.running ? 'Yes' : 'No'}`);
+        if (status.pid) console.log(`  PID: ${status.pid}`);
+        console.log(`  Interval: ${status.config.intervalMinutes} minutes`);
+        console.log(`  Auto-improve: ${status.config.autoImprove}`);
+        if (status.lastActivity) console.log(`  Last activity: ${status.lastActivity}`);
+        break;
+
+      case 'once':
+        // Check for API key
+        if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+          console.error('Error: No API key found.');
+          process.exit(1);
+        }
+        await runOnce();
+        break;
+
+      default:
+        console.log('Unknown action. Use: start, stop, status, or once');
     }
   });
 
