@@ -1,0 +1,32 @@
+{
+  "name": "nous",
+  "version": "0.1.0",
+  "description": "NOUS - An autopoietic system that understands by building",
+  "main": "dist/index.js",
+  "bin": {
+    "nous": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npx ts-node src/index.ts",
+    "nous": "npx ts-node src/index.ts"
+  },
+  "keywords": ["autopoiesis", "ai", "agent", "self-modifying"],
+  "author": "Luca + Claude",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "better-sqlite3": "^11.0.0",
+    "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "dotenv": "^16.0.0",
+    "readline": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
