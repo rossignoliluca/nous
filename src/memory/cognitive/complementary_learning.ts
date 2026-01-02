@@ -394,6 +394,13 @@ export class ComplementaryLearningSystem {
       duration
     );
 
+    // Track empty consolidations for stall detection
+    if (episodes.length === 0 || (conceptsUpdated === 0 && conceptsCreated === 0)) {
+      this.emptyConsolidationCount++;
+    } else {
+      this.emptyConsolidationCount = 0;
+    }
+
     return {
       episodesProcessed: episodes.length,
       conceptsUpdated,
@@ -567,6 +574,143 @@ export class ComplementaryLearningSystem {
       sourceEpisodes: JSON.parse(row.source_episodes || '[]'),
       lastReinforced: row.last_reinforced,
     };
+  }
+
+  // ==================== SELF-KNOWLEDGE ====================
+
+  /**
+   * Force consolidation of source code as semantic knowledge
+   * NOUS must understand its own code to truly self-modify
+   */
+  async consolidateSelfKnowledge(sourceFiles: { path: string; content: string }[]): Promise<{
+    conceptsCreated: number;
+    filesProcessed: number;
+  }> {
+    let conceptsCreated = 0;
+
+    for (const file of sourceFiles) {
+      // Extract key concepts from source code
+      const concepts = this.extractCodeConcepts(file.path, file.content);
+
+      for (const concept of concepts) {
+        const existing = this.getConcept(concept.concept);
+        if (!existing) {
+          this.storeConcept(concept);
+          conceptsCreated++;
+        }
+      }
+    }
+
+    return {
+      conceptsCreated,
+      filesProcessed: sourceFiles.length,
+    };
+  }
+
+  /**
+   * Extract semantic concepts from source code
+   */
+  private extractCodeConcepts(filePath: string, content: string): Omit<SemanticMemory, 'id' | 'lastReinforced'>[] {
+    const concepts: Omit<SemanticMemory, 'id' | 'lastReinforced'>[] = [];
+    const fileName = filePath.split('/').pop() || filePath;
+
+    // Add file itself as concept
+    concepts.push({
+      concept: `SOURCE:${fileName}`,
+      definition: `Core source file: ${filePath}`,
+      category: 'self_code',
+      properties: {
+        path: filePath,
+        lines: content.split('\n').length,
+        type: fileName.endsWith('.ts') ? 'typescript' : 'other',
+      },
+      relationships: [],
+      confidence: 1.0,
+      sourceEpisodes: ['self_analysis'],
+    });
+
+    // Extract exported functions/classes
+    const exportMatches = content.matchAll(/export\s+(async\s+)?(?:function|class|const|interface)\s+(\w+)/g);
+    for (const match of exportMatches) {
+      const name = match[2];
+      concepts.push({
+        concept: `EXPORT:${name}`,
+        definition: `Exported ${match[0].includes('class') ? 'class' : match[0].includes('interface') ? 'interface' : 'function'} from ${fileName}`,
+        category: 'self_api',
+        properties: { file: fileName, type: 'export' },
+        relationships: [{ type: 'defined_in', target: `SOURCE:${fileName}`, strength: 1.0 }],
+        confidence: 1.0,
+        sourceEpisodes: ['self_analysis'],
+      });
+    }
+
+    // Extract key comments/docstrings
+    const docMatches = content.matchAll(/\/\*\*\s*\n\s*\*\s*(.+?)(?:\n|\*\/)/g);
+    for (const match of docMatches) {
+      const doc = match[1].trim();
+      if (doc.length > 20) {
+        concepts.push({
+          concept: `DOC:${doc.slice(0, 50)}`,
+          definition: doc,
+          category: 'self_documentation',
+          properties: { file: fileName },
+          relationships: [{ type: 'documents', target: `SOURCE:${fileName}`, strength: 0.8 }],
+          confidence: 0.9,
+          sourceEpisodes: ['self_analysis'],
+        });
+      }
+    }
+
+    return concepts;
+  }
+
+  /**
+   * Track consecutive empty consolidations for stall detection
+   */
+  private emptyConsolidationCount = 0;
+
+  /**
+   * Check for epistemic stall (no learning happening)
+   */
+  checkEpistemicStall(): { stalled: boolean; consecutiveEmpty: number; recommendation: string } {
+    const stats = this.getStats();
+
+    if (stats.semanticCount === 0 && stats.episodicUnconsolidated > 100) {
+      return {
+        stalled: true,
+        consecutiveEmpty: this.emptyConsolidationCount,
+        recommendation: 'ERR_EPISTEMIC_DEGRADATION: High episode count with zero semantic extraction. Run consolidateSelfKnowledge() to bootstrap understanding.',
+      };
+    }
+
+    if (this.emptyConsolidationCount >= 3) {
+      return {
+        stalled: true,
+        consecutiveEmpty: this.emptyConsolidationCount,
+        recommendation: 'ERR_EPISTEMIC_DEGRADATION: 3+ empty consolidations. System is accumulating episodes without learning. Intervention required.',
+      };
+    }
+
+    return {
+      stalled: false,
+      consecutiveEmpty: this.emptyConsolidationCount,
+      recommendation: 'OK',
+    };
+  }
+
+  /**
+   * Force replay of recent episodes to enable consolidation
+   */
+  forceReplay(count: number = 50): number {
+    const result = this.db.prepare(`
+      UPDATE episodic_memory
+      SET replay_count = replay_count + 3
+      WHERE consolidated = 0
+      ORDER BY significance DESC
+      LIMIT ?
+    `).run(count);
+
+    return result.changes;
   }
 
   /**

@@ -352,6 +352,102 @@ SCIENTIFIC KNOWLEDGE:
         return { success: false, output: '', error: e.message };
       }
     }
+  },
+
+  // === SELF-KNOWLEDGE ===
+  {
+    name: 'analyze_self_code',
+    description: 'Read and understand NOUS source code. Extracts concepts from core files to enable true self-modification. USE THIS when consolidation returns 0.',
+    parameters: [],
+    execute: async () => {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const { getCLS } = await import('../memory/cognitive/complementary_learning');
+        const cls = getCLS();
+
+        // Core files NOUS must understand
+        const coreFiles = [
+          'src/core/axioms.ts',
+          'src/core/axiological_feel.ts',
+          'src/core/agent.ts',
+          'src/core/loop.ts',
+          'src/core/self.ts',
+        ];
+
+        const sourceFiles: { path: string; content: string }[] = [];
+        for (const file of coreFiles) {
+          const fullPath = path.join(process.cwd(), file);
+          if (fs.existsSync(fullPath)) {
+            sourceFiles.push({
+              path: file,
+              content: fs.readFileSync(fullPath, 'utf-8'),
+            });
+          }
+        }
+
+        const result = await cls.consolidateSelfKnowledge(sourceFiles);
+
+        return {
+          success: true,
+          output: `Self-knowledge bootstrap complete:\n- Files analyzed: ${result.filesProcessed}\n- Concepts created: ${result.conceptsCreated}\n\nNOUS now has semantic understanding of its own source code.`
+        };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'check_epistemic_health',
+    description: 'Check if NOUS is in an epistemic stall (accumulating data without learning). Detects ERR_EPISTEMIC_DEGRADATION.',
+    parameters: [],
+    execute: async () => {
+      try {
+        const { getCLS } = await import('../memory/cognitive/complementary_learning');
+        const cls = getCLS();
+        const stall = cls.checkEpistemicStall();
+        const stats = cls.getStats();
+
+        let output = `=== EPISTEMIC HEALTH CHECK ===\n\n`;
+        output += `Episodes: ${stats.episodicCount} (${stats.episodicUnconsolidated} unconsolidated)\n`;
+        output += `Semantic Concepts: ${stats.semanticCount}\n`;
+        output += `Empty Consolidations: ${stall.consecutiveEmpty}\n\n`;
+
+        if (stall.stalled) {
+          output += `⚠️ STATUS: STALLED\n`;
+          output += `RECOMMENDATION: ${stall.recommendation}\n\n`;
+          output += `ACTION REQUIRED: Run 'analyze_self_code' to bootstrap semantic knowledge.`;
+        } else {
+          output += `✓ STATUS: HEALTHY\n`;
+        }
+
+        return { success: true, output };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
+  },
+  {
+    name: 'force_memory_replay',
+    description: 'Force replay of recent episodes to enable consolidation. Use when episodes exist but replay_count is too low.',
+    parameters: [
+      { name: 'count', type: 'number', description: 'Number of episodes to replay (default 50)', required: false }
+    ],
+    execute: async (params) => {
+      try {
+        const { getCLS } = await import('../memory/cognitive/complementary_learning');
+        const cls = getCLS();
+        const count = params.count || 50;
+        const replayed = cls.forceReplay(count);
+
+        return {
+          success: true,
+          output: `Forced replay of ${replayed} episodes. Run 'run_consolidation' next to extract concepts.`
+        };
+      } catch (e: any) {
+        return { success: false, output: '', error: e.message };
+      }
+    }
   }
 ];
 
