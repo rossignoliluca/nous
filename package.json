@@ -12,11 +12,17 @@
     "dev": "npx ts-node src/index.ts",
     "nous": "npx ts-node src/index.ts"
   },
-  "keywords": ["autopoiesis", "ai", "agent", "self-modifying"],
+  "keywords": [
+    "autopoiesis",
+    "ai",
+    "agent",
+    "self-modifying"
+  ],
   "author": "Luca + Claude",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
+    "@octokit/rest": "^22.0.1",
     "better-sqlite3": "^11.0.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
