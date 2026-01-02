@@ -1,4 +1,4 @@
-/**
+/*
  * NOUS Self-Improvement System
  *
  * Allows NOUS to propose, review, and implement improvements to itself.
@@ -19,7 +19,7 @@ import { ask, complete } from '../llm';
 import { status as gitStatus, commit as gitCommit, push as gitPush, diff as gitDiff } from '../actions/git';
 import { readFile, writeFile, listDir } from '../actions/fs';
 
-/**
+/*
  * Improvement proposal
  */
 export interface ImprovementProposal {
@@ -34,7 +34,7 @@ export interface ImprovementProposal {
   status: 'proposed' | 'approved' | 'rejected' | 'implemented';
 }
 
-/**
+/*
  * File change
  */
 export interface FileChange {
@@ -45,7 +45,7 @@ export interface FileChange {
   diff?: string;
 }
 
-/**
+/*
  * Improvement goal
  */
 export interface ImprovementGoal {
@@ -57,14 +57,14 @@ export interface ImprovementGoal {
   completedAt?: string;
 }
 
-/**
+/*
  * Protected files that NOUS cannot modify
  */
 const PROTECTED_FILES = [
   'src/core/axioms.ts',  // A1, A2, A3 are sacred
 ];
 
-/**
+/*
  * Files that require high trust to modify
  */
 const SENSITIVE_FILES = [
@@ -73,7 +73,7 @@ const SENSITIVE_FILES = [
   'src/core/review.ts',
 ];
 
-/**
+/*
  * Check if a file can be modified
  */
 export function canModifyFile(filePath: string): { allowed: boolean; reason?: string } {
@@ -103,13 +103,13 @@ export function canModifyFile(filePath: string): { allowed: boolean; reason?: st
   return { allowed: true };
 }
 
-/**
+/*
  * Analyze codebase for potential improvements
  */
 export async function analyzeForImprovements(): Promise<string[]> {
   const self = loadSelf();
   const memory = getMemory();
-  const insights = memory.searchInsights('', 20);
+  const insights = memory.searchInsights('', 50); // Increased from 20 to 50 for more comprehensive analysis
 
   const prompt = `You are NOUS, analyzing yourself for potential improvements.
 
@@ -146,7 +146,7 @@ Be specific and actionable. Remember: you CANNOT modify axioms.ts (A1, A2, A3).`
   return suggestions;
 }
 
-/**
+/*
  * Generate improvement proposal
  */
 export async function proposeImprovement(
@@ -254,7 +254,7 @@ Respond with JSON:
   return proposal;
 }
 
-/**
+/*
  * Review an improvement proposal
  */
 export async function reviewProposal(
@@ -310,7 +310,7 @@ Respond with JSON:
   };
 }
 
-/**
+/*
  * Implement an approved proposal
  */
 export async function implementProposal(
@@ -378,7 +378,7 @@ export async function implementProposal(
   }
 }
 
-/**
+/*
  * Commit and push improvements to GitHub
  */
 export async function commitImprovements(
@@ -419,7 +419,7 @@ export async function commitImprovements(
   }
 }
 
-/**
+/*
  * Full self-improvement cycle
  */
 export async function selfImprovementCycle(
