@@ -450,7 +450,7 @@ program
     const maxIterations = options.iterations ? parseInt(options.iterations) : undefined;
 
     await runAutonomousCycle({
-      maxMinutes: minutes,
+      maxDurationMinutes: minutes,
       maxIterations,
       queuePath: options.queue
     });
