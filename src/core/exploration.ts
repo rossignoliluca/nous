@@ -118,7 +118,11 @@ export function canTakeRisk(): { allowed: boolean; reason?: string; budget: numb
   const state = loadState();
   const { config } = state;
 
-  const usedPercent = config.riskyActionsInWindow / config.actionsInWindow;
+  // Handle initial state: if no actions taken yet, allow risky actions
+  const usedPercent = config.actionsInWindow > 0
+    ? config.riskyActionsInWindow / config.actionsInWindow
+    : 0;
+
   const allowed = usedPercent < config.current;
 
   return {

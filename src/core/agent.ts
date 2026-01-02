@@ -1096,7 +1096,44 @@ export async function executeAgent(
       });
       console.log(`🔧 ${toolName}(${JSON.stringify(params).slice(0, 60)}${JSON.stringify(params).length > 60 ? '...' : ''})`);
 
-      // Execute the tool
+      // ==================== OPERATIONAL SAFETY GATE ====================
+      // Check gate BEFORE execution (not after)
+      const { checkOperationalGate, logGateDecision, formatGateBlockMessage } = await import('./operational_gate');
+      const gateDecision = checkOperationalGate(toolName, params);
+      logGateDecision(toolName, params, gateDecision);
+
+      // If blocked, return error immediately (do NOT execute)
+      if (!gateDecision.allowed) {
+        const blockMessage = formatGateBlockMessage(gateDecision);
+        console.log(blockMessage);
+
+        // Return early with gate block error
+        const errorMsg = `ERR_GATE_BLOCK: ${gateDecision.reason}\n\n${gateDecision.evidence.join('\n')}`;
+
+        steps.push({
+          type: 'observation',
+          content: `BLOCKED: ${errorMsg}`,
+          timestamp: new Date().toISOString()
+        });
+
+        // Record as invalid tool call (gate blocked)
+        const riskLevel = classifyToolRisk(toolName, params);
+        recordToolCallInvalid(riskLevel);
+
+        return {
+          success: false,
+          answer: blockMessage,
+          steps,
+          tokensUsed
+        };
+      }
+
+      // If warned, log but proceed
+      if (gateDecision.severity === 'warn') {
+        console.log(`⚠️  Gate warning: ${gateDecision.evidence.join(', ')}`);
+      }
+
+      // Gate passed - execute the tool
       const result = await tool.execute(params);
 
       // Record action in cognitive system
@@ -1105,6 +1142,22 @@ export async function executeAgent(
         result.success ? result.output.slice(0, 100) : `Error: ${result.error}`,
         result.success
       );
+
+      // ==================== BUDGET ACCOUNTING ====================
+      // Consume exploration budget for risky actions (only after gate authorization)
+      // Note: riskLevel already classified above (line 1076), use that
+      const { recordAction } = await import('./exploration');
+
+      if (riskLevel === 'write' || riskLevel === 'core') {
+        recordAction('risky', {
+          action: `${toolName}(${JSON.stringify(params).slice(0, 50)})`,
+          success: result.success,
+          rolledBack: false
+        });
+      } else {
+        // Readonly actions still count toward window total
+        recordAction('safe');
+      }
 
       const observation = result.success
         ? result.output
