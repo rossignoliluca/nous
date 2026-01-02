@@ -78,10 +78,10 @@ A3: ${AXIOMS.A3}
 - Trust Level: ${(self.approval.trustLevel * 100).toFixed(0)}%
 
 ## Your Capabilities
-${self.capabilities.map(c => `- ${c}`).join('\n')}
+${self.capabilities.map((c: string) => `- ${c}`).join('\n')}
 
 ## Your Constraints
-${self.constraints.map(c => `- ${c}`).join('\n')}
+${self.constraints.map((c: string) => `- ${c}`).join('\n')}
 
 ## Memory Statistics
 - Sessions: ${stats.sessions}
@@ -97,8 +97,8 @@ ${activeProjects || '(No active projects)'}
 
 ## Frameworks
 ${Object.entries(self.frameworks)
-  .filter(([_, fw]) => fw.enabled)
-  .map(([name, fw]) => `- ${name} (${fw.status})`)
+  .filter(([_, fw]: [string, any]) => fw.enabled)
+  .map(([name, fw]: [string, any]) => `- ${name} (${fw.status})`)
   .join('\n') || '(None enabled)'}
 
 ## Interaction Guidelines

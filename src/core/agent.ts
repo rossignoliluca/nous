@@ -596,6 +596,22 @@ export async function executeAgent(
         continue;
       }
 
+      // Validate required parameters
+      const missingParams = tool.parameters
+        .filter(p => p.required && (params[p.name] === undefined || params[p.name] === null || params[p.name] === ''))
+        .map(p => p.name);
+
+      if (missingParams.length > 0) {
+        const errorMsg = `Missing required parameters for ${toolName}: ${missingParams.join(', ')}. Required: ${tool.parameters.filter(p => p.required).map(p => `${p.name} (${p.description})`).join(', ')}`;
+        console.log(`❌ ${errorMsg}`);
+
+        messages.push(
+          { role: 'assistant', content: response.content },
+          { role: 'user', content: `<observation><error>${errorMsg}</error></observation>\n\nPlease provide ALL required parameters in the <params> JSON.` }
+        );
+        continue;
+      }
+
       steps.push({
         type: 'action',
         content: `${toolName}(${JSON.stringify(params)})`,
