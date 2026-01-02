@@ -40,6 +40,8 @@ import { startDaemon, stopDaemon, getDaemonStatus, runOnce } from './core/daemon
 import { generateReport, getMetrics, resetMetrics } from './core/metrics_v2';
 import { listSnapshots, rollbackToSnapshot, clearSnapshots } from './core/rollback';
 import { fullValidate } from './testing/validation';
+import { createRunner } from './testing/runner';
+import { registerGuardrailsTests } from './testing/guardrails.test';
 import { generateExplorationReport, getExplorationStatus, adjustBudgetManual, resetExploration } from './core/exploration';
 
 const program = new Command();
@@ -329,6 +331,28 @@ program
     } else {
       console.log('\n❌ Validation failed');
       process.exit(1);
+    }
+  });
+
+// Test command (guardrails tests)
+program
+  .command('test')
+  .description('Run guardrails test suite')
+  .option('-g, --guardrails', 'Run guardrails tests only (default)')
+  .action(async (options) => {
+    const runner = createRunner();
+
+    // Register test suites
+    registerGuardrailsTests(runner);
+
+    // Run tests
+    const results = await runner.run();
+
+    if (!runner.allPassed()) {
+      console.log('\n❌ Some tests failed');
+      process.exit(1);
+    } else {
+      console.log('✅ All tests passed');
     }
   });
 
