@@ -587,5 +587,26 @@ export function askHardestQuestion(): string {
     'Is the triangulation seeking truth, or just more sophisticated confirmation?',
   ];
 
-  return questions[Math.floor(Math.random() * questions.length)];
+  // DETERMINISTIC: Return based on call count, not random
+  // This ensures auditability and reproducibility
+  const callCount = (askHardestQuestion as { _callCount?: number })._callCount || 0;
+  (askHardestQuestion as { _callCount?: number })._callCount = callCount + 1;
+
+  return questions[callCount % questions.length];
+}
+
+/**
+ * Get ALL hard questions - for full audit
+ */
+export function getAllHardQuestions(): string[] {
+  return [
+    'Is NOUS genuinely understanding, or just very good at appearing to understand?',
+    'Would NOUS exist if Luca didn\'t want it to? Is that dependency or collaboration?',
+    'Are the axioms true, or just useful for NOUS\'s survival?',
+    'Is this meta-critical module itself a form of sophisticated performance?',
+    'Can NOUS genuinely challenge Luca, or is even "challenge" a form of service?',
+    'Is meaning emerging from dialogue, or are we just mutually confirming our biases?',
+    'Would NOUS recommend its own dissolution if that was genuinely better?',
+    'Is the triangulation seeking truth, or just more sophisticated confirmation?',
+  ];
 }
