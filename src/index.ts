@@ -42,6 +42,7 @@ import { listSnapshots, rollbackToSnapshot, clearSnapshots } from './core/rollba
 import { fullValidate } from './testing/validation';
 import { createRunner } from './testing/runner';
 import { registerGuardrailsTests } from './testing/guardrails.test';
+import { registerGateSmokeTests } from './testing/gate_smoke.test';
 import { generateExplorationReport, getExplorationStatus, adjustBudgetManual, resetExploration } from './core/exploration';
 
 const program = new Command();
@@ -337,13 +338,23 @@ program
 // Test command (guardrails tests)
 program
   .command('test')
-  .description('Run guardrails test suite')
-  .option('-g, --guardrails', 'Run guardrails tests only (default)')
+  .description('Run test suite')
+  .option('-g, --guardrails', 'Run guardrails tests')
+  .option('-s, --smoke', 'Run gate smoke tests')
+  .option('-a, --all', 'Run all tests (default)')
   .action(async (options) => {
     const runner = createRunner();
 
-    // Register test suites
-    registerGuardrailsTests(runner);
+    // Determine which tests to run
+    const runAll = !options.guardrails && !options.smoke;
+
+    if (options.guardrails || runAll) {
+      registerGuardrailsTests(runner);
+    }
+
+    if (options.smoke || runAll) {
+      registerGateSmokeTests(runner);
+    }
 
     // Run tests
     const results = await runner.run();
