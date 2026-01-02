@@ -553,7 +553,12 @@ async function act(
   if (requiresAgent(input) || evaluation.suggestedActions.length > 0) {
     // Use agent for tasks that require tools
     actionTaken = 'agent_tools';
-    responseContent = await runAgent(input);
+    // Pass conversation history for context awareness
+    const conversationHistory = state.messages.slice(-10).map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+    responseContent = await runAgent(input, conversationHistory);
   } else {
     // Regular conversation
     const response = await complete(state.messages);

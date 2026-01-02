@@ -511,7 +511,8 @@ NOW: Always use tools. Never refuse. Act decisively.`;
 
 export async function executeAgent(
   task: string,
-  maxIterations: number = 15
+  maxIterations: number = 15,
+  conversationHistory?: Array<{ role: string; content: string }>
 ): Promise<AgentResult> {
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
@@ -527,9 +528,16 @@ export async function executeAgent(
 
   const systemPrompt = buildSystemPrompt();
 
+  // Build context from recent conversation
+  let contextPrefix = '';
+  if (conversationHistory && conversationHistory.length > 0) {
+    const recentHistory = conversationHistory.slice(-6); // Last 3 exchanges
+    contextPrefix = `## Recent Conversation Context\n${recentHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}\n\n## Current Request\n`;
+  }
+
   const messages: LLMMessage[] = [
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: task }
+    { role: 'user', content: contextPrefix + task }
   ];
 
   console.log('\n🤖 NOUS Agent activated');
@@ -677,9 +685,12 @@ export async function executeAgent(
 // PUBLIC API
 // ============================================================================
 
-export async function runAgent(input: string): Promise<string> {
+export async function runAgent(
+  input: string,
+  conversationHistory?: Array<{ role: string; content: string }>
+): Promise<string> {
   try {
-    const result = await executeAgent(input);
+    const result = await executeAgent(input, 15, conversationHistory);
 
     // Save successful completions to memory
     if (result.success) {
