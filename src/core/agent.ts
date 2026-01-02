@@ -23,7 +23,13 @@ import * as gitActions from '../actions/git';
 import * as shellActions from '../actions/shell';
 import * as webActions from '../actions/web';
 import { getCognitiveSystem } from '../memory/cognitive';
-import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRiskLevel, recordToolCallInLoopHistory, checkForOperationalLoop } from './metrics_v2';
+import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRiskLevel, recordToolCallInLoopHistory, checkForOperationalLoop, resetLoopHistory } from './metrics_v2';
+import {
+  compileToolIntent,
+  formatCompilationError,
+  CompilationLoopDetector,
+  ToolIntent
+} from './tool_compiler';
 
 // ============================================================================
 // TYPES
@@ -33,22 +39,22 @@ import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRi
  * Classify tool risk level for metrics (param-aware)
  */
 function classifyToolRisk(toolName: string, params: Record<string, any>): ToolRiskLevel {
-  // Core: High-risk operations
+  // Core: Self-modification only
   if (toolName === 'modify_self_config') {
     return 'core';
   }
 
   // Write operations with param-aware risk
-  if (toolName === 'write_file') {
+  if (toolName === 'write_file' || toolName === 'delete_file') {
     const path = params.path?.toLowerCase() || '';
 
-    // Core: Critical files
-    if (path.match(/(^|\/)((config|src|package)\.json|\.env|tsconfig|\.git)/)) {
-      return 'core';
+    // Write Critical: package.json, .env, tsconfig, lockfiles, config/self.json
+    if (path.match(/(^|\/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|\.env|tsconfig\.json|config\/self\.json)/)) {
+      return 'write_critical';
     }
 
-    // Write: Regular files
-    return 'write';
+    // Write Normal: Regular files inside project
+    return 'write_normal';
   }
 
   if (toolName === 'run_command') {
@@ -59,9 +65,9 @@ function classifyToolRisk(toolName: string, params: Record<string, any>): ToolRi
       return 'core';
     }
 
-    // Write: Mutation operations
+    // Write Normal: Mutation operations (git commit, npm install, mkdir, etc.)
     if (cmd.match(/^(git\s+(commit|add|push|rm)|npm\s+install|mkdir|rm\s+[^-]|mv|cp|touch|echo\s+.*>)/)) {
-      return 'write';
+      return 'write_normal';
     }
 
     // Readonly: Queries and safe operations
@@ -856,15 +862,22 @@ NOW: Always use tools. Never refuse. Act decisively.`;
 export async function executeAgent(
   task: string,
   maxIterations: number = 15,
-  conversationHistory?: Array<{ role: string; content: string }>
+  conversationHistory?: Array<{ role: string; content: string }>,
+  maxDurationMs?: number
 ): Promise<AgentResult> {
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
   const recentToolCalls: string[] = []; // Track recent tool calls to detect loops (simple detection)
+  const compilationLoopDetector = new CompilationLoopDetector();
+
+  // ==================== RESET LOOP HISTORY (PREVENT FALSE POSITIVES) ====================
+  // Reset loop history at start of each agent invocation to prevent
+  // false positives from accumulated history across multiple sessions
+  resetLoopHistory();
 
   // ==================== BUDGET GUARD (PHASE 0) ====================
   const MAX_TOKENS = 100000;  // Hard limit
-  const MAX_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+  const MAX_DURATION_MS = maxDurationMs || (10 * 60 * 1000); // Default 10 minutes, or custom
   const startTime = Date.now();
 
   // Initialize cognitive system
@@ -875,6 +888,12 @@ export async function executeAgent(
     significance: 0.7,
     emotional: 'focused',
   });
+
+  // Initialize quality gate session (if first time in this execution)
+  const { initQualityGateSession, getQualityGateSessionStats } = await import('./quality_gate_integration');
+  if (!getQualityGateSessionStats()) {
+    initQualityGateSession();
+  }
 
   const systemPrompt = buildSystemPrompt();
 
@@ -976,100 +995,61 @@ export async function executeAgent(
         continue;
       }
 
-      // ==================== HARD-FAIL VALIDATION (PHASE 0) ====================
-      // ERR_TOOL_SCHEMA: Schema violations terminate execution immediately
-      const schemaErrors: string[] = [];
+      // ==================== TOOL CALL COMPILATION ====================
+      // Use compiler to validate tool intent
+      const intent: ToolIntent = { tool: toolName, params };
+      const compilation = compileToolIntent(intent, TOOLS);
 
-      // 1. Validate required parameters exist
-      const missingParams = tool.parameters
-        .filter(p => p.required && (params[p.name] === undefined || params[p.name] === null || params[p.name] === ''))
-        .map(p => p.name);
+      compilationLoopDetector.record(compilation);
 
-      if (missingParams.length > 0) {
-        schemaErrors.push(`Missing required parameters: ${missingParams.join(', ')}`);
-      }
+      // Handle compilation failures
+      if (compilation.status !== 'valid') {
+        console.log(`\n⚠️  Tool call compilation: ${compilation.status.toUpperCase()}\n`);
 
-      // 2. Validate parameter types
-      for (const param of tool.parameters) {
-        const value = params[param.name];
-        if (value === undefined || value === null) continue;
-
-        const actualType = typeof value;
-        if (actualType !== param.type) {
-          schemaErrors.push(`Parameter '${param.name}' expected type '${param.type}', got '${actualType}'`);
-        }
-      }
-
-      // 3. Validate parameter values
-      for (const param of tool.parameters) {
-        const value = params[param.name];
-        if (value === undefined) continue;
-
-        if (param.type === 'string' && typeof value === 'string') {
-          // Detect truncated strings (>100 chars ending without punctuation/space)
-          if (value.length > 100 && !/[\s.!?,;:\n]$/.test(value)) {
-            schemaErrors.push(`Parameter '${param.name}' appears truncated (ends abruptly without punctuation)`);
-          }
-
-          // Detect empty strings for required params
-          if (param.required && value.trim() === '') {
-            schemaErrors.push(`Parameter '${param.name}' is required but empty`);
-          }
-
-          // Max length check
-          if (value.length > 50000) {
-            schemaErrors.push(`Parameter '${param.name}' exceeds maximum length (${value.length} > 50000 chars)`);
-          }
-
-          // Path traversal detection
-          if ((param.name.includes('path') || param.name.includes('file')) && (value.includes('../') || value.includes('..\\'))) {
-            schemaErrors.push(`Parameter '${param.name}' contains path traversal: ${value}`);
-          }
-
-          // Dangerous command patterns (for shell commands)
-          if (toolName === 'run_command' && param.name === 'command') {
-            const dangerousPatterns = [
-              /rm\s+-rf\s+\//, // rm -rf /
-              /dd\s+if=\/dev\/zero/, // dd if=/dev/zero
-              /:\(\)\{/, // fork bomb
-              /mkfs/, // format filesystem
-              />\/dev\/sd[a-z]/, // overwrite disk
-            ];
-
-            for (const pattern of dangerousPatterns) {
-              if (pattern.test(value)) {
-                schemaErrors.push(`Command contains dangerous pattern: ${value.slice(0, 50)}`);
-              }
-            }
-          }
-        }
-
-        if (param.type === 'number' && typeof value === 'number') {
-          if (isNaN(value) || !isFinite(value)) {
-            schemaErrors.push(`Parameter '${param.name}' is not a valid number: ${value}`);
-          }
-        }
-      }
-
-      // HARD FAIL if schema violations detected
-      if (schemaErrors.length > 0) {
-        const errorMsg = `ERR_TOOL_SCHEMA: Tool '${toolName}' schema validation failed:\n${schemaErrors.map(e => `  - ${e}`).join('\n')}\n\nSchema: ${JSON.stringify(tool.parameters, null, 2)}`;
-        console.log(`\n🛑 ${errorMsg}\n`);
-
-        console.log('━'.repeat(50));
-        console.log('❌ EXECUTION TERMINATED: Schema validation failure');
-        console.log('━'.repeat(50));
-
-        // Record invalid tool call in metrics (classify risk even for failed calls)
         const riskLevel = classifyToolRisk(toolName, params);
         recordToolCallInvalid(riskLevel);
 
-        return {
-          success: false,
-          answer: `ERR_TOOL_SCHEMA: Execution terminated due to invalid tool call.\n\n${errorMsg}\n\nThe system cannot proceed with malformed tool calls. Please fix the schema violations and try again.`,
-          steps,
-          tokensUsed
-        };
+        // Check for compilation loop (agent repeatedly failing same way)
+        if (compilationLoopDetector.isLooping()) {
+          const loopDetails = compilationLoopDetector.getLoopDetails();
+          const errorMsg = `ERR_COMPILATION_LOOP: ${loopDetails}`;
+
+          console.log('━'.repeat(50));
+          console.log('❌ EXECUTION TERMINATED: Compilation loop detected');
+          console.log('━'.repeat(50));
+          console.log(errorMsg);
+          console.log('━'.repeat(50));
+
+          return {
+            success: false,
+            answer: errorMsg,
+            steps,
+            tokensUsed
+          };
+        }
+
+        // For incomplete/invalid calls, provide feedback but DON'T terminate
+        // This allows autonomous cycles to downgrade to REVIEW
+        const compilationError = formatCompilationError(compilation);
+        console.log(compilationError);
+
+        // Add observation with compilation feedback
+        const observation = `${compilationError}\n\nPlease provide all required parameters or use a different approach.`;
+
+        steps.push({
+          type: 'observation',
+          content: observation,
+          timestamp: new Date().toISOString()
+        });
+
+        // Add feedback to conversation
+        messages.push(
+          { role: 'assistant', content: response.content },
+          { role: 'user', content: `<observation>\n${observation}\n</observation>\n\nYour tool call was incomplete. Please try again with all required parameters.` }
+        );
+
+        // Continue loop (don't terminate - let agent retry or change approach)
+        continue;
       }
 
       // Classify risk level and record valid tool call
@@ -1143,19 +1123,91 @@ export async function executeAgent(
         result.success
       );
 
+      // ==================== QUALITY GATE (G6) ====================
+      // Check code quality AFTER execution but BEFORE committing
+      const { runQualityGate, logQualityGateDecision } = await import('./quality_gate_integration');
+      const qualityCheck = await runQualityGate(toolName, params, result);
+
+      // Log decision
+      if (qualityCheck.decision !== 'SKIP') {
+        logQualityGateDecision(toolName, params, qualityCheck.decision, qualityCheck.message);
+      }
+
+      // Handle REJECT: provide feedback to agent
+      if (qualityCheck.decision === 'REJECT') {
+        console.log(`\n🚫 Quality Gate REJECTED this change`);
+
+        // Return observation with quality gate feedback
+        const observation = `QUALITY GATE REJECTED: ${qualityCheck.message}\n\nThis change was blocked by quality gate. Consider:\n1. Alternative approach that improves code quality\n2. Breaking change into smaller, clearer modifications\n3. Reviewing the reason codes and addressing violations`;
+
+        steps.push({
+          type: 'observation',
+          content: observation,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log(`👁 ${observation.slice(0, 200)}...`);
+
+        // Add to conversation with quality feedback
+        messages.push(
+          { role: 'assistant', content: response.content },
+          { role: 'user', content: `<observation>\n${observation}\n</observation>\n\nThe quality gate rejected your change. Please try a different approach.` }
+        );
+
+        // Skip budget accounting and continue loop
+        continue;
+      }
+
+      // Handle REVIEW: create Issue
+      if (qualityCheck.decision === 'REVIEW') {
+        console.log(`\n🔍 Quality Gate: REVIEW REQUIRED`);
+        console.log(`   This change needs human judgment`);
+
+        // Create GitHub Issue with review questions
+        const { createIssueForReview } = await import('./quality_gate_integration');
+        if (qualityCheck.gateResult) {
+          const issueResult = await createIssueForReview(toolName, params, qualityCheck.gateResult);
+          if (issueResult.success) {
+            console.log(`   📝 Issue created for human review: ${issueResult.issueUrl}`);
+          } else {
+            console.log(`   ⚠️  Failed to create issue: ${issueResult.error}`);
+          }
+        }
+
+        // Continue normally (treat as PASS with warning)
+      }
+
+      // Handle PASS: create PR
+      if (qualityCheck.decision === 'PASS') {
+        console.log(`\n✅ Quality Gate: PASSED`);
+
+        // Create GitHub PR
+        const { createPRForPass } = await import('./quality_gate_integration');
+        if (qualityCheck.gateResult) {
+          const prResult = await createPRForPass(toolName, params, qualityCheck.gateResult);
+          if (prResult.success) {
+            console.log(`   📝 PR created: ${prResult.prUrl}`);
+          } else {
+            console.log(`   ⚠️  Failed to create PR: ${prResult.error}`);
+          }
+        }
+      }
+
+      // PASS or REVIEW: continue normally
+
       // ==================== BUDGET ACCOUNTING ====================
       // Consume exploration budget for risky actions (only after gate authorization)
-      // Note: riskLevel already classified above (line 1076), use that
+      // Budget applies ONLY to write_critical and core, NOT write_normal
       const { recordAction } = await import('./exploration');
 
-      if (riskLevel === 'write' || riskLevel === 'core') {
+      if (riskLevel === 'write_critical' || riskLevel === 'core') {
         recordAction('risky', {
           action: `${toolName}(${JSON.stringify(params).slice(0, 50)})`,
           success: result.success,
           rolledBack: false
         });
       } else {
-        // Readonly actions still count toward window total
+        // Readonly and write_normal: count toward window but don't consume budget
         recordAction('safe');
       }
 

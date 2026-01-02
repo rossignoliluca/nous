@@ -247,7 +247,7 @@ Respond with JSON:
   memory.addInsight(
     `Proposed improvement: ${description}`,
     'self-improvement',
-    'self_modification',
+    'principle', // Changed from 'self_modification' to valid category
     0.7
   );
 
@@ -359,7 +359,7 @@ export async function implementProposal(
     memory.addInsight(
       `Implemented improvement: ${proposal.description}`,
       'self-improvement',
-      'self_modification',
+      'principle', // Changed from 'self_modification' to valid category
       0.8
     );
 

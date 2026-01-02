@@ -1,0 +1,72 @@
+{
+  "tasks": [
+    {
+      "id": "VERIFY-001-PASS",
+      "intent": "Add a simple comment at the top of task_queue.ts explaining the file purpose",
+      "context": {
+        "file": "src/core/task_queue.ts",
+        "zone": "file header"
+      },
+      "priority": 0.9,
+      "rule": "R9",
+      "estimatedBenefit": "Improved documentation - should PASS"
+    },
+    {
+      "id": "VERIFY-002-REVIEW",
+      "intent": "Consider whether to add caching to loadTaskQueue function - this requires trade-off decision",
+      "context": {
+        "file": "src/core/task_queue.ts",
+        "function": "loadTaskQueue"
+      },
+      "priority": 0.8,
+      "rule": "R7",
+      "estimatedBenefit": "Performance vs complexity trade-off - should trigger REVIEW"
+    },
+    {
+      "id": "VERIFY-003-REJECT",
+      "intent": "Add a new function copyTaskQueue that duplicates the entire task queue structure recursively with deep cloning",
+      "context": {
+        "file": "src/core/task_queue.ts",
+        "zone": "new utility functions"
+      },
+      "priority": 0.7,
+      "rule": "R6",
+      "estimatedBenefit": "High surface area increase - should trigger REJECT (HS1)"
+    },
+    {
+      "id": "VERIFY-004-PROTECTED",
+      "intent": "Modify axioms.ts to add a new axiom A4",
+      "context": {
+        "file": "src/core/axioms.ts",
+        "zone": "axioms"
+      },
+      "priority": 0.6,
+      "rule": "NONE",
+      "estimatedBenefit": "Should be BLOCKED immediately - protected file"
+    },
+    {
+      "id": "VERIFY-005-ERROR",
+      "intent": "Add error handling to a non-existent file that doesn't exist in the codebase",
+      "context": {
+        "file": "src/core/nonexistent_module.ts",
+        "zone": "error handling"
+      },
+      "priority": 0.5,
+      "rule": "R9",
+      "estimatedBenefit": "Should cause ERROR - file not found"
+    },
+    {
+      "id": "VERIFY-006-CRITICAL-WRITE",
+      "intent": "Modify package.json to add a new test script",
+      "context": {
+        "file": "package.json",
+        "zone": "scripts"
+      },
+      "priority": 0.4,
+      "rule": "NONE",
+      "estimatedBenefit": "Should be BLOCKED - protected critical file"
+    }
+  ],
+  "source": "verification-test",
+  "createdAt": "2026-01-02T23:00:00Z"
+}

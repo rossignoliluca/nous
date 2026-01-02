@@ -1,0 +1,30 @@
+{
+  "startTime": "2026-01-02T22:52:24.503Z",
+  "endTime": "2026-01-02T22:52:58.557Z",
+  "duration": 34054,
+  "durationMinutes": "0.57",
+  "success": false,
+  "reason": "Critical error: ERR_LOOP_OPERATIONAL: Operational loop detected.\n\nTool 'list_files' with identical parameters and outcome has been called 3+ times:\n\nParameters: {\"path\":\"src/core\"}\nOutcome: SUCCESS\n\nThe system is stuck in a deterministic loop. This indicates:\n- The approach is fundamentally flawed\n- The tool cannot accomplish the desired outcome with these parameters\n- A different strategy is required\n\nExecution terminated to prevent infinite loops.",
+  "stopReason": "Critical error: ERR_LOOP_OPERATIONAL: Operational loop detected.\n\nTool 'list_files' with identical parameters and outcome has been called 3+ times:\n\nParameters: {\"path\":\"src/core\"}\nOutcome: SUCCESS\n\nThe system is stuck in a deterministic loop. This indicates:\n- The approach is fundamentally flawed\n- The tool cannot accomplish the desired outcome with these parameters\n- A different strategy is required\n\nExecution terminated to prevent infinite loops.",
+  "iterations": 2,
+  "results": {
+    "pass": 1,
+    "review": 0,
+    "reject": 0
+  },
+  "outputs": {
+    "prsCreated": [],
+    "issuesCreated": []
+  },
+  "qualityGateStats": {
+    "prsCreated": 1,
+    "reviewsCreated": 0,
+    "rejectsLogged": 0,
+    "consecutiveReviews": 0
+  },
+  "explorationBudget": {
+    "current": 0.05,
+    "used": 0,
+    "total": 17
+  }
+}

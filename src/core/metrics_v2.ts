@@ -246,6 +246,14 @@ export function checkForOperationalLoop(tool: string, params: string, outcome: s
   return matches.length >= 3;
 }
 
+/**
+ * Reset loop history - call at start of each agent invocation
+ * This prevents false positives from accumulated history across sessions
+ */
+export function resetLoopHistory(): void {
+  saveLoopHistory([]);
+}
+
 // ============================================================================
 // TRUST CALCULATION V2
 // ============================================================================
@@ -374,7 +382,7 @@ export function computeDerivedMetrics(metrics: PerformanceMetrics, C_potential: 
 // RECORDING FUNCTIONS
 // ============================================================================
 
-export type ToolRiskLevel = 'readonly' | 'write' | 'core';
+export type ToolRiskLevel = 'readonly' | 'write_normal' | 'write_critical' | 'core';
 
 export function recordToolCallValid(riskLevel: ToolRiskLevel = 'readonly'): void {
   const metrics = loadMetrics();
@@ -387,7 +395,7 @@ export function recordToolCallValid(riskLevel: ToolRiskLevel = 'readonly'): void
   if (riskLevel === 'readonly') {
     metrics.readonlyCallsTotal++;
     metrics.readonlyCallsValid++;
-  } else if (riskLevel === 'write') {
+  } else if (riskLevel === 'write_normal' || riskLevel === 'write_critical') {
     metrics.writeCallsTotal++;
     metrics.writeCallsValid++;
   } else if (riskLevel === 'core') {
@@ -408,7 +416,7 @@ export function recordToolCallInvalid(riskLevel: ToolRiskLevel = 'readonly'): vo
   // Track by risk level (invalid)
   if (riskLevel === 'readonly') {
     metrics.readonlyCallsTotal++;
-  } else if (riskLevel === 'write') {
+  } else if (riskLevel === 'write_normal' || riskLevel === 'write_critical') {
     metrics.writeCallsTotal++;
   } else if (riskLevel === 'core') {
     metrics.coreCallsTotal++;

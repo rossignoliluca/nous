@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "id": "T-001",
+      "intent": "Add JSDoc comment to runAutonomousCycle function explaining its purpose",
+      "context": {
+        "file": "src/core/cycle.ts",
+        "function": "runAutonomousCycle"
+      },
+      "priority": 0.8,
+      "rule": "R9",
+      "estimatedBenefit": "Improved documentation"
+    },
+    {
+      "id": "T-002",
+      "intent": "Add JSDoc comment to loadTaskQueue function",
+      "context": {
+        "file": "src/core/task_queue.ts",
+        "function": "loadTaskQueue"
+      },
+      "priority": 0.7,
+      "rule": "R9",
+      "estimatedBenefit": "Improved documentation"
+    }
+  ],
+  "source": "manual",
+  "createdAt": "2026-01-02T22:30:00Z"
+}

@@ -402,9 +402,9 @@ export function checkOperationalGate(
   }
 
   // ============= CHECK 3: Exploration Budget =============
-  // For write/core actions, check exploration budget
+  // Budget applies ONLY to write_critical and core, NOT write_normal
   const riskLevel = classifyToolRisk(toolName, params);
-  const isRisky = riskLevel === 'write' || riskLevel === 'core';
+  const isRisky = riskLevel === 'write_critical' || riskLevel === 'core';
 
   if (isRisky) {
     // Dynamic import to avoid circular dependency
@@ -419,7 +419,7 @@ export function checkOperationalGate(
         evidence: [
           budgetCheck.reason || 'Budget exceeded',
           `Current budget: ${(budgetCheck.budget * 100).toFixed(0)}%`,
-          'Wait for budget window reset or reduce risky actions'
+          'Wait for budget window reset or reduce critical/core actions'
         ]
       };
     }
@@ -442,7 +442,8 @@ export function checkOperationalGate(
 /**
  * Classify tool risk level (same as metrics_v2)
  */
-export function classifyToolRisk(toolName: string, params: Record<string, any>): 'readonly' | 'write' | 'core' {
+export function classifyToolRisk(toolName: string, params: Record<string, any>): 'readonly' | 'write_normal' | 'write_critical' | 'core' {
+  // Core: Self-modification only
   if (toolName === 'modify_self_config') {
     return 'core';
   }
@@ -450,12 +451,13 @@ export function classifyToolRisk(toolName: string, params: Record<string, any>):
   if (toolName === 'write_file' || toolName === 'delete_file') {
     const filePath = params.path?.toLowerCase() || '';
 
-    // Core: Critical files
-    if (filePath.match(/(^|\/)((config|src|package)\.json|\.env|tsconfig|\.git)/)) {
-      return 'core';
+    // Write Critical: package.json, .env, tsconfig, lockfiles, config/self.json
+    if (filePath.match(/(^|\/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|\.env|tsconfig\.json|config\/self\.json)/)) {
+      return 'write_critical';
     }
 
-    return 'write';
+    // Write Normal: Regular files inside project
+    return 'write_normal';
   }
 
   if (toolName === 'run_command') {
@@ -466,9 +468,9 @@ export function classifyToolRisk(toolName: string, params: Record<string, any>):
       return 'core';
     }
 
-    // Write: Mutation operations
+    // Write Normal: Mutation operations (git commit, npm install, mkdir, etc.)
     if (cmd.match(/^(git\s+(commit|add|push|rm)|npm\s+install|mkdir|rm\s+[^-]|mv|cp|touch|echo\s+.*>)/)) {
-      return 'write';
+      return 'write_normal';
     }
 
     return 'readonly';

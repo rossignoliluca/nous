@@ -1,0 +1,30 @@
+{
+  "startTime": "2026-01-02T22:40:57.119Z",
+  "endTime": "2026-01-02T22:41:07.093Z",
+  "duration": 9974,
+  "durationMinutes": "0.17",
+  "success": false,
+  "reason": "Critical error: ERR_TOOL_SCHEMA: Execution terminated due to invalid tool call.\n\nERR_TOOL_SCHEMA: Tool 'write_file' schema validation failed:\n  - Missing required parameters: path, content\n\nSchema: [\n  {\n    \"name\": \"path\",\n    \"type\": \"string\",\n    \"description\": \"Path to the file\",\n    \"required\": true\n  },\n  {\n    \"name\": \"content\",\n    \"type\": \"string\",\n    \"description\": \"Content to write\",\n    \"required\": true\n  }\n]\n\nThe system cannot proceed with malformed tool calls. Please fix the schema violations and try again.",
+  "stopReason": "Critical error: ERR_TOOL_SCHEMA: Execution terminated due to invalid tool call.\n\nERR_TOOL_SCHEMA: Tool 'write_file' schema validation failed:\n  - Missing required parameters: path, content\n\nSchema: [\n  {\n    \"name\": \"path\",\n    \"type\": \"string\",\n    \"description\": \"Path to the file\",\n    \"required\": true\n  },\n  {\n    \"name\": \"content\",\n    \"type\": \"string\",\n    \"description\": \"Content to write\",\n    \"required\": true\n  }\n]\n\nThe system cannot proceed with malformed tool calls. Please fix the schema violations and try again.",
+  "iterations": 1,
+  "results": {
+    "pass": 0,
+    "review": 0,
+    "reject": 0
+  },
+  "outputs": {
+    "prsCreated": [],
+    "issuesCreated": []
+  },
+  "qualityGateStats": {
+    "prsCreated": 0,
+    "reviewsCreated": 0,
+    "rejectsLogged": 0,
+    "consecutiveReviews": 0
+  },
+  "explorationBudget": {
+    "current": 0.05,
+    "used": 0,
+    "total": 13
+  }
+}

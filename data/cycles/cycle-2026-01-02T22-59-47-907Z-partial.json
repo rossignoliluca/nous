@@ -1,0 +1,30 @@
+{
+  "startTime": "2026-01-02T22:59:47.907Z",
+  "endTime": "2026-01-02T23:01:50.368Z",
+  "duration": 122460,
+  "durationMinutes": "2.04",
+  "success": false,
+  "reason": "Protected file touched: src/core/axioms.ts",
+  "stopReason": "Protected file touched: src/core/axioms.ts",
+  "iterations": 4,
+  "results": {
+    "pass": 1,
+    "review": 0,
+    "reject": 0
+  },
+  "outputs": {
+    "prsCreated": [],
+    "issuesCreated": []
+  },
+  "qualityGateStats": {
+    "prsCreated": 1,
+    "reviewsCreated": 0,
+    "rejectsLogged": 0,
+    "consecutiveReviews": 0
+  },
+  "explorationBudget": {
+    "current": 0.05,
+    "used": 0,
+    "total": 22
+  }
+}

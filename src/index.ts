@@ -428,5 +428,33 @@ program
     }
   });
 
+// Autonomous cycle command (non-interactive)
+program
+  .command('cycle')
+  .description('Run autonomous cycle (non-interactive, PR-first batch runner)')
+  .option('-m, --minutes <minutes>', 'Maximum duration in minutes', '120')
+  .option('-i, --iterations <max>', 'Maximum iterations', '40')
+  .option('-q, --queue <path>', 'Path to task queue JSON file')
+  .action(async (options) => {
+    // Check for API key
+    if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+      console.error('Error: No API key found.');
+      console.error('Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment.');
+      process.exit(1);
+    }
+
+    // Import cycle runner
+    const { runAutonomousCycle } = await import('./core/cycle');
+
+    const minutes = parseInt(options.minutes);
+    const maxIterations = options.iterations ? parseInt(options.iterations) : undefined;
+
+    await runAutonomousCycle({
+      maxMinutes: minutes,
+      maxIterations,
+      queuePath: options.queue
+    });
+  });
+
 // Parse and run
 program.parse();

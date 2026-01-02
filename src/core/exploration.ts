@@ -179,7 +179,7 @@ function adjustBudget(state: ExplorationState): void {
   const { config } = state;
 
   // Import metrics to check criteria
-  const { getMetrics } = require('./metrics');
+  const { getMetrics } = require('./metrics_v2');
   const { performance, derived } = getMetrics(0.8);
 
   // Criteria for step UP (+1%)
