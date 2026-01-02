@@ -15,9 +15,22 @@ import { URL } from 'url';
 import { getStats, getCurrentLock, DisputeEvent } from './github_dispute';
 import { getTelemetry, TelemetryState } from './cli';
 import { getSilenceLog, getSilenceStats, SilenceEvent } from '../core/silence';
+import { getNOUSSelfTracker } from '../frameworks/atlas';
+
+export interface AtlasStatus {
+  C: number;
+  S: number;
+  strata: { MATTER: boolean | number; LIFE: boolean | number; SENTIENCE: boolean | number; LOGOS: boolean | number };
+  stratum: string;
+  stratumLevel: number;
+  capabilities: number;
+  relations: number;
+  uncertainties: Record<string, number>;
+}
 
 export interface StatusResponse {
   telemetry: TelemetryState;
+  atlas: AtlasStatus;
   dispute: ReturnType<typeof getStats>;
   silence: ReturnType<typeof getSilenceStats>;
   timestamp: string;
@@ -49,9 +62,40 @@ function jsonResponse(res: http.ServerResponse, data: unknown, status = 200): vo
   res.end(JSON.stringify(data, null, 2));
 }
 
+function getAtlasStatus(): AtlasStatus {
+  try {
+    const tracker = getNOUSSelfTracker();
+    const config = tracker.getConfig();
+    const stratum = tracker.getStratumLevel();
+
+    return {
+      C: config.C,
+      S: config.S,
+      strata: config.Σ,
+      stratum: stratum.primary,
+      stratumLevel: stratum.level,
+      capabilities: config.K.length,
+      relations: config.R.length,
+      uncertainties: config.U,
+    };
+  } catch {
+    return {
+      C: 0,
+      S: 0,
+      strata: { MATTER: false, LIFE: false, SENTIENCE: false, LOGOS: false },
+      stratum: 'UNKNOWN',
+      stratumLevel: 0,
+      capabilities: 0,
+      relations: 0,
+      uncertainties: {},
+    };
+  }
+}
+
 function handleStatus(res: http.ServerResponse): void {
   const response: StatusResponse = {
     telemetry: getTelemetry(),
+    atlas: getAtlasStatus(),
     dispute: getStats(),
     silence: getSilenceStats(),
     timestamp: new Date().toISOString(),
