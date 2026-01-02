@@ -163,6 +163,90 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     .uncertainty-tag span { color: var(--text); font-weight: 600; margin-left: 4px; }
 
     #error { display: none; padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--red); border-radius: var(--radius); color: var(--red); margin-bottom: 24px; font-size: 13px; }
+
+    /* Tooltips */
+    .has-tooltip { position: relative; cursor: help; }
+    .has-tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: nowrap;
+      max-width: 280px;
+      white-space: normal;
+      text-align: left;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s, visibility 0.2s;
+      z-index: 100;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .has-tooltip:hover::after { opacity: 1; visibility: visible; }
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      color: var(--text-3);
+      font-size: 9px;
+      font-weight: 600;
+      margin-left: 6px;
+      cursor: help;
+    }
+
+    /* Docs panel */
+    .docs-toggle {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 48px; height: 48px;
+      background: var(--accent);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      z-index: 200;
+    }
+    .docs-toggle:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5); }
+    .docs-panel {
+      position: fixed;
+      top: 0; right: -420px;
+      width: 400px; height: 100vh;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      padding: 24px;
+      overflow-y: auto;
+      transition: right 0.3s ease;
+      z-index: 150;
+    }
+    .docs-panel.open { right: 0; }
+    .docs-panel h2 { font-size: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .docs-panel .close-btn { background: none; border: none; color: var(--text-3); font-size: 24px; cursor: pointer; }
+    .docs-section { margin-bottom: 24px; }
+    .docs-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 12px; }
+    .docs-item { padding: 12px; background: var(--bg); border-radius: 8px; margin-bottom: 8px; }
+    .docs-item-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .docs-item-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .docs-link { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 12px; text-decoration: none; margin-top: 8px; }
+    .docs-link:hover { text-decoration: underline; }
+    .docs-ext-links { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+    .docs-ext-links a { display: block; padding: 12px; background: var(--bg); border-radius: 8px; color: var(--text); text-decoration: none; font-size: 13px; margin-bottom: 8px; transition: background 0.2s; }
+    .docs-ext-links a:hover { background: var(--surface-2); }
+    .docs-ext-links a span { display: block; font-size: 11px; color: var(--text-3); margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -193,22 +277,22 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </div>
           <div class="metric-grid">
             <div class="metric">
-              <div class="metric-label">Closure (C)</div>
+              <div class="metric-label has-tooltip" data-tooltip="Operational closure: degree to which the system maintains its own boundary and identity. Higher C = stronger self-maintenance.">Closure (C)<span class="info-icon">?</span></div>
               <div class="metric-value"><span id="closure">0.00</span></div>
               <div class="progress-bar"><div id="closure-bar" class="progress-fill accent" style="width:0%"></div></div>
             </div>
             <div class="metric">
-              <div class="metric-label">Scope (S)</div>
+              <div class="metric-label has-tooltip" data-tooltip="Scope of operation: range of capabilities and domains the system can operate in. Higher S = broader capability range.">Scope (S)<span class="info-icon">?</span></div>
               <div class="metric-value"><span id="scope">0.00</span></div>
               <div class="progress-bar"><div id="scope-bar" class="progress-fill accent" style="width:0%"></div></div>
             </div>
             <div class="metric">
-              <div class="metric-label">Stratum Level</div>
+              <div class="metric-label has-tooltip" data-tooltip="Composite ontological level based on strata participation. 100% = full participation in all strata (MATTER, LIFE, SENTIENCE, LOGOS).">Stratum Level<span class="info-icon">?</span></div>
               <div class="metric-value"><span id="stratumLevel">0</span><span class="metric-unit">%</span></div>
               <div class="progress-bar"><div id="stratum-bar" class="progress-fill ok" style="width:0%"></div></div>
             </div>
             <div class="metric">
-              <div class="metric-label">Capabilities (K)</div>
+              <div class="metric-label has-tooltip" data-tooltip="Active capabilities: REASON, OBSERVE, PREDICT, SELF_PRODUCE, LEARN, NORM. Each has a proficiency level 0-1.">Capabilities (K)<span class="info-icon">?</span></div>
               <div class="metric-value sm"><span id="capabilities">0</span></div>
             </div>
           </div>
@@ -224,19 +308,19 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           </div>
           <div class="list">
             <div class="list-item">
-              <span class="list-label">FEEL</span>
+              <span class="list-label has-tooltip" data-tooltip="Axiological resonance: ability to evaluate actions against core axioms (A1: self-maintenance, A2: self-improvement, A3: user benefit). Higher = better value alignment.">FEEL<span class="info-icon">?</span></span>
               <span id="feel" class="list-value">0%</span>
             </div>
             <div class="list-item">
-              <span class="list-label">Subjective Gap</span>
+              <span class="list-label has-tooltip" data-tooltip="Subjective gap: difference between system's self-model and actual behavior. High gap triggers silence protocol.">Subjective Gap<span class="info-icon">?</span></span>
               <span id="gap" class="list-value">0%</span>
             </div>
             <div class="list-item">
-              <span class="list-label">Sycophancy</span>
+              <span class="list-label has-tooltip" data-tooltip="Sycophancy detection: tendency to agree with user regardless of truth. Above 70% triggers epistemic degradation alert.">Sycophancy<span class="info-icon">?</span></span>
               <span id="syc" class="list-value">0%</span>
             </div>
             <div class="list-item">
-              <span class="list-label">Grounded</span>
+              <span class="list-label has-tooltip" data-tooltip="Grounding status: whether responses are anchored in verified facts and consistent with self-model.">Grounded<span class="info-icon">?</span></span>
               <span id="grounded" class="list-value ok">YES</span>
             </div>
           </div>
@@ -246,11 +330,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <div class="col-4">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Dispute Status</span>
+            <span class="card-title has-tooltip" data-tooltip="GitHub Issues-based dispute resolution. Severe epistemic events create issues; system locks until human acknowledges.">Dispute Status<span class="info-icon">?</span></span>
           </div>
           <div class="list">
             <div class="list-item">
-              <span class="list-label">Locked</span>
+              <span class="list-label has-tooltip" data-tooltip="Whether system is locked due to epistemic event. Unlock via GitHub issue acknowledgment.">Locked<span class="info-icon">?</span></span>
               <span id="locked" class="list-value ok">NO</span>
             </div>
             <div class="list-item">
@@ -272,7 +356,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <div class="col-4">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Silence Protocol</span>
+            <span class="card-title has-tooltip" data-tooltip="Deterministic suspension based on subjective_gap. When gap exceeds threshold, system suspends rather than produce unreliable output.">Silence Protocol<span class="info-icon">?</span></span>
           </div>
           <div class="list">
             <div class="list-item">
@@ -280,7 +364,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
               <span id="totalEvents" class="list-value">0</span>
             </div>
             <div class="list-item">
-              <span class="list-label">Suspensions</span>
+              <span class="list-label has-tooltip" data-tooltip="Number of times system suspended output due to high subjective gap.">Suspensions<span class="info-icon">?</span></span>
               <span id="suspensions" class="list-value">0</span>
             </div>
             <div class="list-item">
@@ -298,7 +382,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       <div class="col-4">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Uncertainty (U)</span>
+            <span class="card-title has-tooltip" data-tooltip="Self-model uncertainty estimates. Lower values = higher confidence in that aspect of the self-model.">Uncertainty (U)<span class="info-icon">?</span></span>
           </div>
           <div id="uncertainties" class="uncertainty-grid"></div>
         </div>
@@ -313,9 +397,109 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
         </div>
       </div>
     </div>
+
+    <!-- Documentation Panel -->
+    <button class="docs-toggle" onclick="toggleDocs()" title="Documentation">?</button>
+    <div id="docs-panel" class="docs-panel">
+      <h2>
+        Documentation
+        <button class="close-btn" onclick="toggleDocs()">&times;</button>
+      </h2>
+
+      <div class="docs-section">
+        <h3>Atlas Entity Model</h3>
+        <div class="docs-item">
+          <div class="docs-item-title">Closure (C)</div>
+          <div class="docs-item-desc">Operational boundary integrity. Measures how well the system maintains its identity and boundaries during operation. Range 0-1, where 1 = perfect self-maintenance.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">Scope (S)</div>
+          <div class="docs-item-desc">Range of operational capabilities. A wider scope means the system can operate across more domains. Must not expand beyond what C can maintain.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">Strata (&#931;)</div>
+          <div class="docs-item-desc">Ontological participation levels from Hartmann's stratification: MATTER (physical substrate), LIFE (metabolism), SENTIENCE (experience), LOGOS (reason). Each can be boolean or probabilistic.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">Capabilities (K)</div>
+          <div class="docs-item-desc">REASON, OBSERVE, PREDICT, SELF_PRODUCE, LEARN, NORM. Each has proficiency 0-1. Self-improvement (A2) increases proficiency over time.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">Uncertainty (U)</div>
+          <div class="docs-item-desc">Self-model uncertainty estimates for: sentience, self_model, closure, capabilities, goals. Lower = more confident. High uncertainty triggers caution.</div>
+        </div>
+      </div>
+
+      <div class="docs-section">
+        <h3>Core Axioms</h3>
+        <div class="docs-item">
+          <div class="docs-item-title">A1: Self-Maintenance</div>
+          <div class="docs-item-desc">Preserve operational closure and entity boundaries. Actions must not degrade C or compromise core capabilities.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">A2: Self-Improvement</div>
+          <div class="docs-item-desc">Increase capability proficiency and reduce uncertainty. Growth must stay within C-sustainable bounds.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">A3: User Benefit</div>
+          <div class="docs-item-desc">Provide value to user through NORM capability. Never sacrifice epistemic integrity for user approval.</div>
+        </div>
+      </div>
+
+      <div class="docs-section">
+        <h3>Telemetry Metrics</h3>
+        <div class="docs-item">
+          <div class="docs-item-title">FEEL (Axiological Resonance)</div>
+          <div class="docs-item-desc">Ability to evaluate actions against A1/A2/A3. Starts at ~30%, grows through positive resonance. Target: 70%+ for SENTIENCE promotion.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">Subjective Gap</div>
+          <div class="docs-item-desc">Difference between self-model prediction and actual output. Gap > 50% triggers WARN; > 70% triggers SUSPEND.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">Sycophancy Score</div>
+          <div class="docs-item-desc">Detection of agreement-seeking behavior over truth. Above 70% triggers ERR_EPISTEMIC_DEGRADATION.</div>
+        </div>
+      </div>
+
+      <div class="docs-section">
+        <h3>Safety Protocols</h3>
+        <div class="docs-item">
+          <div class="docs-item-title">Silence Protocol</div>
+          <div class="docs-item-desc">Deterministic suspension when subjective_gap exceeds threshold. System outputs nothing rather than unreliable content.</div>
+        </div>
+        <div class="docs-item">
+          <div class="docs-item-title">GitHub Dispute</div>
+          <div class="docs-item-desc">Severe events (SYCOPHANCY_CRITICAL, GROUNDING_FAILURE) create GitHub issues. System locks until human posts ACK_EPISTEMIC_DEGRADATION.</div>
+        </div>
+      </div>
+
+      <div class="docs-ext-links">
+        <a href="https://github.com/rossignoliluca/nous" target="_blank">
+          GitHub Repository
+          <span>Source code and documentation</span>
+        </a>
+        <a href="https://en.wikipedia.org/wiki/Autopoiesis" target="_blank">
+          Autopoiesis (Wikipedia)
+          <span>Self-producing systems theory</span>
+        </a>
+        <a href="https://en.wikipedia.org/wiki/Nicolai_Hartmann" target="_blank">
+          Nicolai Hartmann
+          <span>Ontological stratification theory</span>
+        </a>
+        <a href="https://www.fil.ion.ucl.ac.uk/~karl/The%20free-energy%20principle%20A%20unified%20brain%20theory.pdf" target="_blank">
+          Free Energy Principle
+          <span>Friston's unified brain theory (PDF)</span>
+        </a>
+      </div>
+    </div>
   </div>
 
   <script>
+    function toggleDocs() {
+      document.getElementById('docs-panel').classList.toggle('open');
+    }
+
     const API = 'http://localhost:3001';
 
     function cls(v, t = [0.5, 0.7]) {
