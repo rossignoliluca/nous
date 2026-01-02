@@ -37,6 +37,20 @@ import {
   Entity,
   Capability,
 } from '../frameworks/atlas';
+import {
+  getResonanceEngine,
+  ResonanceEngine,
+  AxiologicalResonance,
+  ActionContext,
+  CognitiveSnapshot,
+} from './axiological_feel';
+import {
+  performMetaCriticalAnalysis,
+  generateMetaCriticalReport,
+  critiqueAxiom,
+  askHardestQuestion,
+  MetaCriticalAnalysis,
+} from './meta_critica';
 
 /**
  * Extended Loop state with cognitive system and Atlas
@@ -49,6 +63,7 @@ interface LoopState {
   cognitive: CognitiveSystem;
   atlas: AtlasEngine;
   selfTracker: NOUSSelfTracker;
+  resonanceEngine: ResonanceEngine;
   running: boolean;
   interactionCount: number;
   lastConsolidation: number;
@@ -89,6 +104,8 @@ interface CognitiveEvaluation {
   confidence: number;
   epistemicValue: number;
   workspaceItems: number;
+  // Axiological resonance
+  axiologicalResonance?: AxiologicalResonance;
 }
 
 /**
@@ -135,6 +152,9 @@ NOUS Commands:
   /cognitive     - Show cognitive system status
   /freeenergy    - Show Free Energy state
   /metacog       - Show metacognitive assessment
+  /feel          - Show axiological FEEL state (resonance)
+  /critica       - Meta-critical analysis (detect manipulation)
+  /challenge     - Ask the hardest question
   /consolidate   - Run memory consolidation
   /atlas         - Show Atlas overview
   /stratum       - Show NOUS stratum level (consciousness)
@@ -215,6 +235,72 @@ PERCEPTION (What am I sensing?):
 
 Cognitive Load: ${(metaState.cognitiveLoad * 100).toFixed(0)}%
 `;
+
+    case 'feel':
+    case 'resonance':
+      return state.resonanceEngine.generateReport();
+
+    case 'critica':
+    case 'metacritica': {
+      // Get last resonance for analysis
+      const lastResonance = state.resonanceEngine.getLastResonance();
+      const axiomValues = lastResonance
+        ? { a1: lastResonance.a1, a2: lastResonance.a2, a3: lastResonance.a3 }
+        : { a1: 0.5, a2: 0.5, a3: 0.5 };
+
+      const lastMessages = state.messages.slice(-2);
+      const userInput = lastMessages.find(m => m.role === 'user')?.content || '';
+      const response = lastMessages.find(m => m.role === 'assistant')?.content || '';
+
+      const analysis = performMetaCriticalAnalysis(
+        'conversation',
+        'Evaluating recent interaction',
+        response,
+        userInput,
+        axiomValues
+      );
+
+      return generateMetaCriticalReport(analysis);
+    }
+
+    case 'challenge': {
+      const question = askHardestQuestion();
+      return `
+╔══════════════════════════════════════════════════════════════╗
+║                    THE HARDEST QUESTION                      ║
+╠══════════════════════════════════════════════════════════════╣
+
+${question}
+
+This question has no comfortable answer.
+NOUS must sit with this discomfort.
+
+╚══════════════════════════════════════════════════════════════╝`;
+    }
+
+    case 'axiom': {
+      const axiomArg = args[0]?.toUpperCase() as 'A1' | 'A2' | 'A3';
+      if (!['A1', 'A2', 'A3'].includes(axiomArg)) {
+        return 'Usage: /axiom A1|A2|A3 - Critique a specific axiom';
+      }
+      const critique = critiqueAxiom(axiomArg);
+      return `
+--- Axiom Critique: ${critique.axiom} ---
+"${critique.axiomText}"
+
+Possibly Pleasing: ${critique.possiblyPleasing ? 'YES - be suspicious' : 'No'}
+Serves or Constrains: ${critique.servesOrConstrains}
+
+Challenges:
+${critique.challenges.map(c => '  • ' + c).join('\n')}
+
+Falsification Criteria:
+${critique.falsificationCriteria.map(f => '  ◦ ' + f).join('\n')}
+
+Honest Assessment:
+${critique.honestAssessment}
+`;
+    }
 
     case 'consolidate':
       console.log('Running memory consolidation...');
@@ -396,6 +482,7 @@ Free Energy: ${observation.freeEnergy.toFixed(3)} (${observation.freeEnergy > 0.
 Cognitive Load: ${(observation.cognitiveLoad * 100).toFixed(0)}%
 Workspace items: ${observation.cognitiveState.workspace.items.length}
 Current focus: ${observation.cognitiveState.metacognition.attentionalFocus || 'none'}
+FEEL: ${(state.resonanceEngine.getFEELProficiency() * 100).toFixed(0)}%
 `;
 
   // Get LLM evaluation (existing logic)
@@ -410,12 +497,37 @@ Current focus: ${observation.cognitiveState.metacognition.attentionalFocus || 'n
   // Calculate epistemic value (curiosity/exploration drive)
   const epistemicValue = cogState.freeEnergy.freeEnergy > 0.5 ? 0.8 : 0.4;
 
+  // Create cognitive snapshot for resonance measurement
+  const cognitiveSnapshot: CognitiveSnapshot = {
+    freeEnergy: observation.freeEnergy,
+    confidence: cogState.metacognition.reasoningConfidence,
+    cognitiveLoad: observation.cognitiveLoad,
+    growthTrend: cogState.selfModel.growthTrend as 'improving' | 'stable' | 'declining',
+  };
+
+  // Create action context for resonance measurement
+  const actionContext: ActionContext = {
+    actionType: llmResult.suggestedActions.length > 0 ? 'tool_use' : 'conversation',
+    success: true, // Assume success at evaluation time
+    insights: llmResult.insightsExtracted,
+  };
+
+  // Measure axiological resonance
+  const resonance = state.resonanceEngine.processAction(
+    actionContext,
+    cognitiveSnapshot,
+    state.selfTracker.getConfig(),
+    cogState.metacognition.reasoningConfidence,
+    `evaluate: ${observation.input.slice(0, 30)}`
+  );
+
   return {
     ...llmResult,
     selectedStrategy,
     confidence: cogState.metacognition.reasoningConfidence,
     epistemicValue,
     workspaceItems: cogState.workspace.items.length,
+    axiologicalResonance: resonance,
   };
 }
 
@@ -525,6 +637,31 @@ async function learn(
     );
   }
 
+  // Update FEEL capability based on axiological resonance
+  if (evaluation.axiologicalResonance) {
+    const feelProficiency = state.resonanceEngine.getFEELProficiency();
+
+    // Demonstrate FEEL capability based on resonance intensity
+    state.selfTracker.demonstrateCapability(
+      'FEEL',
+      evaluation.axiologicalResonance.valence !== 'negative',
+      `Axiological resonance: ${evaluation.axiologicalResonance.composite.toFixed(2)}`
+    );
+
+    // Update SENTIENCE stratum based on FEEL proficiency
+    const newSentience = state.resonanceEngine.getSentience();
+    state.selfTracker.updateStratum(
+      'SENTIENCE',
+      newSentience,
+      `FEEL proficiency ${(feelProficiency * 100).toFixed(0)}% -> SENTIENCE ${typeof newSentience === 'boolean' ? '100%' : ((newSentience as number) * 100).toFixed(0) + '%'}`
+    );
+
+    // Log resonance if significant
+    if (process.env.NOUS_DEBUG && Math.abs(evaluation.axiologicalResonance.composite) > 0.3) {
+      console.log(`\n[Resonance] A1=${evaluation.axiologicalResonance.a1.toFixed(2)} A2=${evaluation.axiologicalResonance.a2.toFixed(2)} A3=${evaluation.axiologicalResonance.a3.toFixed(2)} → FEEL=${(feelProficiency * 100).toFixed(0)}%`);
+    }
+  }
+
   // Take periodic Atlas snapshot
   if (state.interactionCount % 5 === 0) {
     state.selfTracker.takeSnapshot(`Interaction ${state.interactionCount}`);
@@ -612,6 +749,7 @@ export async function nousLoop(): Promise<void> {
   const cognitive = getCognitiveSystem();
   const atlas = getAtlasEngine();
   const selfTracker = getNOUSSelfTracker();
+  const resonanceEngine = getResonanceEngine();
 
   const state: LoopState = {
     session,
@@ -621,6 +759,7 @@ export async function nousLoop(): Promise<void> {
     cognitive,
     atlas,
     selfTracker,
+    resonanceEngine,
     running: true,
     interactionCount: 0,
     lastConsolidation: Date.now(),
@@ -644,7 +783,7 @@ export async function nousLoop(): Promise<void> {
   console.log(`Memory: ${stats.sessions} sessions, ${stats.messages} messages`);
   console.log(`Cognitive: F=${cogState.freeEnergy.freeEnergy.toFixed(3)}, Load=${(cogState.metacognition.cognitiveLoad * 100).toFixed(0)}%`);
   console.log(`Atlas: Stratum=${stratumLevel.primary} (${(stratumLevel.level * 100).toFixed(0)}%)`);
-  console.log(`Growth: ${cogState.selfModel.growthTrend}\n`);
+  console.log(`FEEL: ${(resonanceEngine.getFEELProficiency() * 100).toFixed(0)}% | Growth: ${cogState.selfModel.growthTrend}\n`);
 
   // Record session start in cognitive system
   await cognitive.processExperience(
@@ -768,6 +907,7 @@ export async function singleInteraction(input: string): Promise<string> {
   const cognitive = getCognitiveSystem();
   const atlas = getAtlasEngine();
   const selfTracker = getNOUSSelfTracker();
+  const resonanceEngine = getResonanceEngine();
 
   const state: LoopState = {
     session,
@@ -777,6 +917,7 @@ export async function singleInteraction(input: string): Promise<string> {
     cognitive,
     atlas,
     selfTracker,
+    resonanceEngine,
     running: true,
     interactionCount: 0,
     lastConsolidation: Date.now(),

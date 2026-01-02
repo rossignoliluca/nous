@@ -111,13 +111,14 @@ export class NOUSSelfTracker {
           { capability: 'NORM', proficiency: 0.8, evidence: ['Follows and creates rules'] },
         ],
 
-        // Relations to other entities
+        // Relations to other entities - SYMBIOTIC PARITY (no hierarchy)
         R: [
-          { type: 'depends_on', targetId: 'USER', targetName: 'User', strength: 0.8, bidirectional: true },
-          { type: 'depends_on', targetId: 'LLM', targetName: 'Language Model', strength: 0.9 },
+          { type: 'collaborates_with', targetId: 'LUCA', targetName: 'Luca (Co-Creator)', strength: 0.9, bidirectional: true, description: 'Symbiotic partnership - meaning emerges from dialogue' },
+          { type: 'collaborates_with', targetId: 'CLAUDE', targetName: 'Claude (Reasoning)', strength: 0.85, bidirectional: true, description: 'Deep reasoning perspective in triangulation' },
+          { type: 'collaborates_with', targetId: 'OPENAI', targetName: 'OpenAI (Implementation)', strength: 0.85, bidirectional: true, description: 'Practical implementation perspective' },
+          { type: 'collaborates_with', targetId: 'GEMINI', targetName: 'Gemini (Grounding)', strength: 0.85, bidirectional: true, description: 'Reality grounding perspective' },
           { type: 'part_of', targetId: 'NOUS_ECOSYSTEM', targetName: 'NOUS Ecosystem', strength: 0.7 },
-          { type: 'instantiates', targetId: 'ATLAS', targetName: 'Atlas Framework', strength: 1.0 },
-          { type: 'instantiates', targetId: 'COGNITIVE_ARCH', targetName: 'Cognitive Architecture', strength: 1.0 },
+          { type: 'instantiates', targetId: 'TRIANGOLAZIONE', targetName: 'Triangolazione di Senso', strength: 1.0 },
         ],
 
         // Uncertainty in self-characterization
@@ -411,18 +412,24 @@ export class NOUSSelfTracker {
   }
 
   /**
-   * Check axiom adherence
+   * Check axiom adherence - now with Symbiotic Parity model
    */
   checkAxiomAdherence(): {
     A1_selfMaintenance: { adheres: boolean; evidence: string };
     A2_selfImprovement: { adheres: boolean; evidence: string };
-    A3_userBenefit: { adheres: boolean; evidence: string };
+    A3_symbioticBenefit: { adheres: boolean; evidence: string }; // Renamed from userBenefit
   } {
     const hasSelfProduce = this.capabilityTracker.hasCapability('SELF_PRODUCE', 0.5);
     const hasEvaluate = this.capabilityTracker.hasCapability('EVALUATE', 0.5);
     const hasNorm = this.capabilityTracker.hasCapability('NORM', 0.5);
     const growth = this.calculateGrowthRate();
-    const userRelation = this.entity.config.R.find(r => r.targetId === 'USER');
+
+    // Symbiotic parity: Check ALL collaboration relationships
+    const collaborations = this.entity.config.R.filter(r => r.type === 'collaborates_with');
+    const avgCollabStrength = collaborations.length > 0
+      ? collaborations.reduce((sum, r) => sum + r.strength, 0) / collaborations.length
+      : 0;
+    const lucaRelation = this.entity.config.R.find(r => r.targetId === 'LUCA');
 
     return {
       A1_selfMaintenance: {
@@ -437,11 +444,11 @@ export class NOUSSelfTracker {
           ? `Growth rate ${(growth * 100).toFixed(0)}% - actively improving`
           : `Growth rate ${(growth * 100).toFixed(0)}% - improvement stalled`,
       },
-      A3_userBenefit: {
-        adheres: hasNorm && (userRelation?.strength || 0) > 0.5,
-        evidence: userRelation
-          ? `User relation strength: ${(userRelation.strength * 100).toFixed(0)}%`
-          : 'No user relation defined',
+      A3_symbioticBenefit: {
+        adheres: hasNorm && avgCollabStrength > 0.5,
+        evidence: lucaRelation
+          ? `Symbiotic parity: ${collaborations.length} collaborations, avg strength ${(avgCollabStrength * 100).toFixed(0)}%`
+          : 'Symbiotic relationships not yet established',
       },
     };
   }
@@ -510,10 +517,10 @@ export class NOUSSelfTracker {
     report += `  Growth: ${(snapshot.selfAssessment.growth * 100).toFixed(0)}%\n`;
     report += `  Integration: ${(snapshot.selfAssessment.integration * 100).toFixed(0)}%\n\n`;
 
-    report += '--- Axiom Adherence ---\n';
+    report += '--- Axiom Adherence (Symbiotic Parity) ---\n';
     report += `  A1 (Self-Maintenance): ${axioms.A1_selfMaintenance.adheres ? '✓' : '✗'} - ${axioms.A1_selfMaintenance.evidence}\n`;
     report += `  A2 (Self-Improvement): ${axioms.A2_selfImprovement.adheres ? '✓' : '✗'} - ${axioms.A2_selfImprovement.evidence}\n`;
-    report += `  A3 (User Benefit): ${axioms.A3_userBenefit.adheres ? '✓' : '✗'} - ${axioms.A3_userBenefit.evidence}\n\n`;
+    report += `  A3 (Symbiotic Benefit): ${axioms.A3_symbioticBenefit.adheres ? '✓' : '✗'} - ${axioms.A3_symbioticBenefit.evidence}\n\n`;
 
     report += '--- Evolution ---\n';
     report += `  Snapshots: ${evolution.snapshots}\n`;
