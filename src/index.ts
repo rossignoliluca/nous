@@ -40,6 +40,7 @@ import { startDaemon, stopDaemon, getDaemonStatus, runOnce } from './core/daemon
 import { generateReport, getMetrics, resetMetrics } from './core/metrics';
 import { listSnapshots, rollbackToSnapshot, clearSnapshots } from './core/rollback';
 import { fullValidate } from './testing/validation';
+import { generateExplorationReport, getExplorationStatus, adjustBudgetManual, resetExploration } from './core/exploration';
 
 const program = new Command();
 
@@ -365,6 +366,30 @@ program
       }
     } else if (options.clear) {
       clearSnapshots();
+    }
+  });
+
+// Exploration command
+program
+  .command('explore')
+  .description('Exploration budget operations')
+  .option('-s, --status', 'Show exploration budget status')
+  .option('-u, --up', 'Manually increase budget')
+  .option('-d, --down', 'Manually decrease budget')
+  .option('-r, --reset', 'Reset budget to target (7%)')
+  .action((options) => {
+    if (options.up) {
+      adjustBudgetManual('up');
+      console.log('✓ Budget increased manually');
+    } else if (options.down) {
+      adjustBudgetManual('down');
+      console.log('✓ Budget decreased manually');
+    } else if (options.reset) {
+      resetExploration();
+      console.log('✓ Exploration system reset to defaults');
+    } else {
+      const report = generateExplorationReport();
+      console.log(report);
     }
   });
 

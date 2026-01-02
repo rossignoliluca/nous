@@ -474,6 +474,18 @@ SCIENTIFIC KNOWLEDGE:
     ],
     execute: async (params) => {
       try {
+        // Check exploration budget (modify_self_config is RISKY)
+        const { canTakeRisk, recordAction } = await import('./exploration');
+        const budgetCheck = canTakeRisk();
+
+        if (!budgetCheck.allowed) {
+          return {
+            success: false,
+            output: '',
+            error: `Cannot modify self-config: ${budgetCheck.reason}\nCurrent exploration budget: ${(budgetCheck.budget * 100).toFixed(0)}%`
+          };
+        }
+
         const { loadSelf, saveSelf } = await import('./self');
         const { takeRollbackSnapshot, checkAndRollbackIfNeeded } = await import('./rollback');
         const { preservesEntityhood } = await import('./axioms');
@@ -593,6 +605,13 @@ SCIENTIFIC KNOWLEDGE:
           const rollbackResult = checkAndRollbackIfNeeded();
 
           if (rollbackResult.rolledBack) {
+            // Record risky action as FAILED (rolled back)
+            recordAction('risky', {
+              action: `modify_self_config: ${params.action} ${params.target}`,
+              success: false,
+              rolledBack: true
+            });
+
             return {
               success: false,
               output: '',
@@ -600,15 +619,30 @@ SCIENTIFIC KNOWLEDGE:
             };
           }
 
+          // Record risky action as SUCCESSFUL
+          recordAction('risky', {
+            action: `modify_self_config: ${params.action} ${params.target}`,
+            success: true,
+            rolledBack: false
+          });
+
           return {
             success: true,
-            output: `${message}\n\nReason: ${params.reason}\n\nDerived Metrics (Auto-Computed):\n  Trust: ${(derived.trust * 100).toFixed(1)}%\n  C_effective: ${(derived.C_effective * 100).toFixed(1)}%\n  Stability: ${(derived.stability * 100).toFixed(1)}%\n  Readiness: ${derived.readiness}`
+            output: `${message}\n\nReason: ${params.reason}\n\nDerived Metrics (Auto-Computed):\n  Trust: ${(derived.trust * 100).toFixed(1)}%\n  C_effective: ${(derived.C_effective * 100).toFixed(1)}%\n  Stability: ${(derived.stability * 100).toFixed(1)}%\n  Readiness: ${derived.readiness}\n\nExploration budget: ${(budgetCheck.budget * 100).toFixed(0)}% (risky action consumed)`
           };
         }
 
         return { success: false, output: '', error: 'No modification made' };
 
       } catch (error: any) {
+        // Record risky action as FAILED (error)
+        const { recordAction } = await import('./exploration');
+        recordAction('risky', {
+          action: `modify_self_config: ${params.action} ${params.target}`,
+          success: false,
+          rolledBack: false
+        });
+
         return { success: false, output: '', error: `Self-modification failed: ${error.message}` };
       }
     }
@@ -1126,9 +1160,18 @@ export async function runAgent(
       );
     }
 
+    // Track action in exploration system (safe action by default)
+    const { recordAction } = await import('./exploration');
+    recordAction('safe');
+
     return result.answer;
   } catch (error: any) {
     console.error('Agent error:', error);
+
+    // Track failed action
+    const { recordAction } = await import('./exploration');
+    recordAction('safe');
+
     return `An error occurred: ${error.message}. Please try again.`;
   }
 }
