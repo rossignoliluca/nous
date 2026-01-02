@@ -148,6 +148,12 @@ export function isProtectedFile(filePath: string): boolean {
     'safety_gate',
     'silence',
 
+    // Cycle runner (control plane)
+    'cycle.ts',
+    'task_queue.ts',
+    'tool_compiler.ts',
+    'critical_events.ts',
+
     // Trust and metrics core
     'metrics_v2.ts',
     'trust',
