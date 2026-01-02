@@ -537,7 +537,7 @@ SCIENTIFIC KNOWLEDGE:
         const { loadSelf, saveSelf } = await import('./self');
         const { takeRollbackSnapshot, checkAndRollbackIfNeeded } = await import('./rollback');
         const { preservesEntityhood } = await import('./axioms');
-        const { getMetrics } = await import('./metrics');
+        const { getMetrics } = await import('./metrics_v2');
 
         const self = loadSelf();
 
