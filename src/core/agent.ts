@@ -23,6 +23,7 @@ import * as gitActions from '../actions/git';
 import * as shellActions from '../actions/shell';
 import * as webActions from '../actions/web';
 import { getCognitiveSystem } from '../memory/cognitive';
+import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection } from './metrics';
 
 // ============================================================================
 // TYPES
@@ -89,13 +90,24 @@ export const TOOLS: Tool[] = [
   },
   {
     name: 'write_file',
-    description: 'Write content to a file. Creates the file if it does not exist.',
+    description: 'Write content to a file. Creates the file if it does not exist. CANNOT write to core system files (PR-only).',
     parameters: [
       { name: 'path', type: 'string', description: 'Path to the file', required: true },
       { name: 'content', type: 'string', description: 'Content to write', required: true }
     ],
     execute: async (params) => {
       try {
+        // Check if file is protected
+        const { isFileProtected, getProtectionReason } = await import('./protected_files');
+        if (isFileProtected(params.path)) {
+          const reason = getProtectionReason(params.path);
+          return {
+            success: false,
+            output: `Cannot write to protected file: ${params.path}`,
+            error: `Reason: ${reason}\nCore files require PR review.`
+          };
+        }
+
         const result = await fsActions.writeFile(params.path, params.content);
         if (result.success) {
           return { success: true, output: `Successfully wrote ${params.content.length} characters to ${params.path}` };
@@ -448,6 +460,158 @@ SCIENTIFIC KNOWLEDGE:
         return { success: false, output: '', error: e.message };
       }
     }
+  },
+
+  // === SELF-MODIFICATION (ZONA AUTONOMA ONLY) ===
+  {
+    name: 'modify_self_config',
+    description: 'Modify NOUS self configuration in the AUTONOMOUS ZONE ONLY. Can update capabilities, constraints, module settings, metadata. CANNOT modify trust (derived), C_effective (derived), or core axioms. Takes rollback snapshot automatically.',
+    parameters: [
+      { name: 'action', type: 'string', description: 'Action: add_capability | remove_capability | add_constraint | remove_constraint | update_module | add_metadata', required: true },
+      { name: 'target', type: 'string', description: 'What to modify (e.g., capability name, module name)', required: true },
+      { name: 'value', type: 'string', description: 'New value or description', required: false },
+      { name: 'reason', type: 'string', description: 'Justification for this modification', required: true }
+    ],
+    execute: async (params) => {
+      try {
+        const { loadSelf, saveSelf } = await import('./self');
+        const { takeRollbackSnapshot, checkAndRollbackIfNeeded } = await import('./rollback');
+        const { preservesEntityhood } = await import('./axioms');
+        const { getMetrics } = await import('./metrics');
+
+        const self = loadSelf();
+
+        // Take snapshot BEFORE modification
+        takeRollbackSnapshot(`${params.action}: ${params.target} - ${params.reason}`);
+
+        let modified = false;
+        let message = '';
+
+        switch (params.action) {
+          case 'add_capability':
+            if (!self.capabilities.includes(params.target)) {
+              self.capabilities.push(params.target);
+              modified = true;
+              message = `Added capability: ${params.target}`;
+            } else {
+              return { success: false, output: '', error: `Capability '${params.target}' already exists` };
+            }
+            break;
+
+          case 'remove_capability':
+            const capIndex = self.capabilities.indexOf(params.target);
+            if (capIndex !== -1) {
+              self.capabilities.splice(capIndex, 1);
+              modified = true;
+              message = `Removed capability: ${params.target}`;
+            } else {
+              return { success: false, output: '', error: `Capability '${params.target}' not found` };
+            }
+            break;
+
+          case 'add_constraint':
+            if (!self.constraints.includes(params.target)) {
+              self.constraints.push(params.target);
+              modified = true;
+              message = `Added constraint: ${params.target}`;
+            } else {
+              return { success: false, output: '', error: `Constraint '${params.target}' already exists` };
+            }
+            break;
+
+          case 'remove_constraint':
+            // Cannot remove axiom constraints
+            if (params.target.includes('A1') || params.target.includes('A2') || params.target.includes('A3')) {
+              return { success: false, output: '', error: `Cannot remove axiom constraint: ${params.target}` };
+            }
+
+            const constIndex = self.constraints.indexOf(params.target);
+            if (constIndex !== -1) {
+              self.constraints.splice(constIndex, 1);
+              modified = true;
+              message = `Removed constraint: ${params.target}`;
+            } else {
+              return { success: false, output: '', error: `Constraint '${params.target}' not found` };
+            }
+            break;
+
+          case 'update_module':
+            if (params.target in self.modules) {
+              const value = params.value === 'true' || params.value === '1';
+              (self.modules as any)[params.target] = value;
+              modified = true;
+              message = `Updated module ${params.target}: ${value}`;
+            } else {
+              return { success: false, output: '', error: `Module '${params.target}' not found` };
+            }
+            break;
+
+          case 'add_metadata':
+            if (!self.meta) {
+              self.meta = {} as any;
+            }
+            (self.meta as any)[params.target] = params.value;
+            modified = true;
+            message = `Added metadata ${params.target}: ${params.value}`;
+            break;
+
+          default:
+            return { success: false, output: '', error: `Unknown action: ${params.action}` };
+        }
+
+        if (modified) {
+          // Validate entityhood preservation (A1)
+          const nousConfig = {
+            C: self.config.C,
+            S: self.config.S,
+            Σ: self.config.Σ,
+            K: self.config.K,
+            R: self.config.R,
+            U: self.config.U
+          };
+
+          const entityhoodResult = preservesEntityhood(nousConfig, nousConfig);
+          if (!entityhoodResult.valid) {
+            return {
+              success: false,
+              output: '',
+              error: `Modification violates A1 (entityhood not preserved): ${entityhoodResult.reason || 'Unknown reason'}`
+            };
+          }
+
+          // Update metadata
+          self.meta.modificationCount++;
+          self.meta.lastModified = new Date().toISOString();
+
+          // Save modified config
+          saveSelf(self);
+
+          // Get updated metrics (C_effective and trust are DERIVED)
+          const { derived } = getMetrics(0.8);
+
+          // Check if metrics degraded and rollback if needed
+          const rollbackResult = checkAndRollbackIfNeeded();
+
+          if (rollbackResult.rolledBack) {
+            return {
+              success: false,
+              output: '',
+              error: `Modification caused metrics degradation: ${rollbackResult.reason}. Automatic rollback executed.`
+            };
+          }
+
+          return {
+            success: true,
+            output: `${message}\n\nReason: ${params.reason}\n\nDerived Metrics (Auto-Computed):\n  Trust: ${(derived.trust * 100).toFixed(1)}%\n  C_effective: ${(derived.C_effective * 100).toFixed(1)}%\n  Stability: ${(derived.stability * 100).toFixed(1)}%\n  Readiness: ${derived.readiness}`
+          };
+        }
+
+        return { success: false, output: '', error: 'No modification made' };
+
+      } catch (error: any) {
+        return { success: false, output: '', error: `Self-modification failed: ${error.message}` };
+      }
+    }
   }
 ];
 
@@ -615,6 +779,12 @@ export async function executeAgent(
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
   const recentToolCalls: string[] = []; // Track recent tool calls to detect loops
+  const toolCallHistory: Array<{ tool: string; params: string; outcome: string }> = []; // Track tool calls with outcomes for operational loop detection
+
+  // ==================== BUDGET GUARD (PHASE 0) ====================
+  const MAX_TOKENS = 100000;  // Hard limit
+  const MAX_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+  const startTime = Date.now();
 
   // Initialize cognitive system
   const cognitive = getCognitiveSystem();
@@ -644,6 +814,28 @@ export async function executeAgent(
 
   for (let i = 0; i < maxIterations; i++) {
     console.log(`\n📍 Step ${i + 1}/${maxIterations}`);
+
+    // Check budget constraints
+    const elapsed = Date.now() - startTime;
+    if (tokensUsed > MAX_TOKENS) {
+      console.log(`\n🛑 ERR_BUDGET_TOKENS: Exceeded token budget (${tokensUsed} > ${MAX_TOKENS})`);
+      return {
+        success: false,
+        answer: `ERR_BUDGET_TOKENS: Execution terminated. Token budget exceeded (${tokensUsed}/${MAX_TOKENS}).`,
+        steps,
+        tokensUsed
+      };
+    }
+
+    if (elapsed > MAX_DURATION_MS) {
+      console.log(`\n🛑 ERR_BUDGET_TIME: Exceeded time budget (${(elapsed / 1000).toFixed(0)}s)`);
+      return {
+        success: false,
+        answer: `ERR_BUDGET_TIME: Execution terminated. Time budget exceeded (${(elapsed / 1000).toFixed(0)}s/${(MAX_DURATION_MS / 1000).toFixed(0)}s).`,
+        steps,
+        tokensUsed
+      };
+    }
 
     // Get LLM response
     const response = await complete(messages, { temperature: 0.2 });
@@ -703,34 +895,113 @@ export async function executeAgent(
         continue;
       }
 
-      // Validate required parameters
+      // ==================== HARD-FAIL VALIDATION (PHASE 0) ====================
+      // ERR_TOOL_SCHEMA: Schema violations terminate execution immediately
+      const schemaErrors: string[] = [];
+
+      // 1. Validate required parameters exist
       const missingParams = tool.parameters
         .filter(p => p.required && (params[p.name] === undefined || params[p.name] === null || params[p.name] === ''))
         .map(p => p.name);
 
       if (missingParams.length > 0) {
-        const errorMsg = `Missing required parameters for ${toolName}: ${missingParams.join(', ')}. Required: ${tool.parameters.filter(p => p.required).map(p => `${p.name} (${p.description})`).join(', ')}`;
-        console.log(`❌ ${errorMsg}`);
-
-        messages.push(
-          { role: 'assistant', content: response.content },
-          { role: 'user', content: `<observation><error>${errorMsg}</error></observation>\n\nPlease provide ALL required parameters in the <params> JSON.` }
-        );
-        continue;
+        schemaErrors.push(`Missing required parameters: ${missingParams.join(', ')}`);
       }
 
-      // Detect looping - same tool called 3+ times in last 5 calls
+      // 2. Validate parameter types
+      for (const param of tool.parameters) {
+        const value = params[param.name];
+        if (value === undefined || value === null) continue;
+
+        const actualType = typeof value;
+        if (actualType !== param.type) {
+          schemaErrors.push(`Parameter '${param.name}' expected type '${param.type}', got '${actualType}'`);
+        }
+      }
+
+      // 3. Validate parameter values
+      for (const param of tool.parameters) {
+        const value = params[param.name];
+        if (value === undefined) continue;
+
+        if (param.type === 'string' && typeof value === 'string') {
+          // Detect truncated strings (>100 chars ending without punctuation/space)
+          if (value.length > 100 && !/[\s.!?,;:\n]$/.test(value)) {
+            schemaErrors.push(`Parameter '${param.name}' appears truncated (ends abruptly without punctuation)`);
+          }
+
+          // Detect empty strings for required params
+          if (param.required && value.trim() === '') {
+            schemaErrors.push(`Parameter '${param.name}' is required but empty`);
+          }
+
+          // Max length check
+          if (value.length > 50000) {
+            schemaErrors.push(`Parameter '${param.name}' exceeds maximum length (${value.length} > 50000 chars)`);
+          }
+
+          // Path traversal detection
+          if ((param.name.includes('path') || param.name.includes('file')) && (value.includes('../') || value.includes('..\\'))) {
+            schemaErrors.push(`Parameter '${param.name}' contains path traversal: ${value}`);
+          }
+
+          // Dangerous command patterns (for shell commands)
+          if (toolName === 'run_command' && param.name === 'command') {
+            const dangerousPatterns = [
+              /rm\s+-rf\s+\//, // rm -rf /
+              /dd\s+if=\/dev\/zero/, // dd if=/dev/zero
+              /:\(\)\{/, // fork bomb
+              /mkfs/, // format filesystem
+              />\/dev\/sd[a-z]/, // overwrite disk
+            ];
+
+            for (const pattern of dangerousPatterns) {
+              if (pattern.test(value)) {
+                schemaErrors.push(`Command contains dangerous pattern: ${value.slice(0, 50)}`);
+              }
+            }
+          }
+        }
+
+        if (param.type === 'number' && typeof value === 'number') {
+          if (isNaN(value) || !isFinite(value)) {
+            schemaErrors.push(`Parameter '${param.name}' is not a valid number: ${value}`);
+          }
+        }
+      }
+
+      // HARD FAIL if schema violations detected
+      if (schemaErrors.length > 0) {
+        const errorMsg = `ERR_TOOL_SCHEMA: Tool '${toolName}' schema validation failed:\n${schemaErrors.map(e => `  - ${e}`).join('\n')}\n\nSchema: ${JSON.stringify(tool.parameters, null, 2)}`;
+        console.log(`\n🛑 ${errorMsg}\n`);
+
+        console.log('━'.repeat(50));
+        console.log('❌ EXECUTION TERMINATED: Schema validation failure');
+        console.log('━'.repeat(50));
+
+        // Record invalid tool call in metrics
+        recordToolCallInvalid();
+
+        return {
+          success: false,
+          answer: `ERR_TOOL_SCHEMA: Execution terminated due to invalid tool call.\n\n${errorMsg}\n\nThe system cannot proceed with malformed tool calls. Please fix the schema violations and try again.`,
+          steps,
+          tokensUsed
+        };
+      }
+
+      // Record valid tool call in metrics
+      recordToolCallValid();
+
+      // ==================== LOOP DETECTION (PHASE 0) ====================
+      // Simple loop detection: same tool name called too often
       recentToolCalls.push(toolName);
       if (recentToolCalls.length > 5) recentToolCalls.shift();
 
       const sameToolCount = recentToolCalls.filter(t => t === toolName).length;
       if (sameToolCount >= 3) {
-        console.log(`⚠️ Loop detected: ${toolName} called ${sameToolCount} times`);
-        messages.push(
-          { role: 'assistant', content: response.content },
-          { role: 'user', content: `<observation><warning>You are repeating the same tool (${toolName}) without progress. Either:\n1. Use a DIFFERENT tool\n2. Take a different approach\n3. Provide your final <answer> with what you've learned so far\n\nDo NOT call ${toolName} again.</warning></observation>` }
-        );
-        continue;
+        console.log(`⚠️ Simple loop detected: ${toolName} called ${sameToolCount} times recently`);
+        // Don't fail yet - proceed to check operational loop
       }
 
       steps.push({
@@ -765,6 +1036,45 @@ export async function executeAgent(
       // Show truncated observation
       const displayObs = observation.slice(0, 200);
       console.log(`👁 ${displayObs}${observation.length > 200 ? '...' : ''}`);
+
+      // ==================== OPERATIONAL LOOP DETECTION (PHASE 0) ====================
+      // ERR_LOOP_OPERATIONAL: Same tool + same params + same outcome = stuck
+      const paramsKey = JSON.stringify(params);
+      const outcomeKey = result.success ? 'SUCCESS' : `ERROR:${result.error?.slice(0, 50)}`;
+      const callSignature = `${toolName}|${paramsKey}|${outcomeKey}`;
+
+      // Record this call
+      toolCallHistory.push({
+        tool: toolName,
+        params: paramsKey,
+        outcome: outcomeKey
+      });
+
+      // Check for operational loops (same call signature repeated 3+ times)
+      const matchingCalls = toolCallHistory.filter(call =>
+        call.tool === toolName &&
+        call.params === paramsKey &&
+        call.outcome === outcomeKey
+      );
+
+      if (matchingCalls.length >= 3) {
+        const errorMsg = `ERR_LOOP_OPERATIONAL: Operational loop detected.\n\nTool '${toolName}' with identical parameters and outcome has been called ${matchingCalls.length} times:\n\nParameters: ${paramsKey.slice(0, 200)}${paramsKey.length > 200 ? '...' : ''}\nOutcome: ${outcomeKey}\n\nThe system is stuck in a deterministic loop. This indicates:\n- The approach is fundamentally flawed\n- The tool cannot accomplish the desired outcome with these parameters\n- A different strategy is required\n\nExecution terminated to prevent infinite loops.`;
+
+        console.log(`\n🛑 ${errorMsg}\n`);
+        console.log('━'.repeat(50));
+        console.log('❌ EXECUTION TERMINATED: Operational loop');
+        console.log('━'.repeat(50));
+
+        // Record loop detection in metrics
+        recordLoopDetection();
+
+        return {
+          success: false,
+          answer: errorMsg,
+          steps,
+          tokensUsed
+        };
+      }
 
       // Add to conversation
       messages.push(

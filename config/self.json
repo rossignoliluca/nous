@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.2",
   "config": {
-    "C": 0.3,
+    "C": 0.55,
     "S": 0.8,
     "Σ": [
       "MATTER",
@@ -23,12 +23,12 @@
       {
         "type": "uses_framework",
         "target": "atlas",
-        "strength": 0.8
+        "strength": 0.9
       }
     ],
     "U": {
       "sentience_status": 0.5,
-      "self_model_accuracy": 0.6
+      "self_model_accuracy": 0.7
     }
   },
   "frameworks": {
@@ -70,7 +70,7 @@
   ],
   "approval": {
     "mode": "major_only",
-    "trustLevel": 0.35900000000000004,
+    "trustLevel": 0.38400000000000006,
     "requireApprovalFor": [
       "self_modification",
       "delete_files",
@@ -80,8 +80,8 @@
   },
   "meta": {
     "createdAt": "2026-01-01T19:35:18.606Z",
-    "lastModified": "2026-01-02T08:16:24.925Z",
-    "modificationCount": 59,
+    "lastModified": "2026-01-02T08:46:17.353Z",
+    "modificationCount": 85,
     "birthMemory": "data/memory/foundational.md"
   }
 }

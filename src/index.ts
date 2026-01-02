@@ -37,6 +37,9 @@ import { getMemory } from './memory/store';
 import { AXIOMS } from './core/axioms';
 import { selfImprovementCycle, analyzeForImprovements, proposeImprovement } from './core/improve';
 import { startDaemon, stopDaemon, getDaemonStatus, runOnce } from './core/daemon';
+import { generateReport, getMetrics, resetMetrics } from './core/metrics';
+import { listSnapshots, rollbackToSnapshot, clearSnapshots } from './core/rollback';
+import { fullValidate } from './testing/validation';
 
 const program = new Command();
 
@@ -296,6 +299,72 @@ program
 
       default:
         console.log('Unknown action. Use: start, stop, status, or once');
+    }
+  });
+
+// Metrics command
+program
+  .command('metrics')
+  .description('Show performance metrics and derived values')
+  .option('-r, --reset', 'Reset metrics to zero')
+  .action((options) => {
+    if (options.reset) {
+      resetMetrics();
+      console.log('✓ Metrics reset to zero');
+    } else {
+      const report = generateReport(0.8);
+      console.log(report);
+    }
+  });
+
+// Validation command
+program
+  .command('validate')
+  .description('Run full system validation')
+  .action(async () => {
+    const result = await fullValidate();
+    if (result.passed) {
+      console.log('\n✅ All validation checks passed');
+    } else {
+      console.log('\n❌ Validation failed');
+      process.exit(1);
+    }
+  });
+
+// Rollback command
+program
+  .command('rollback')
+  .description('Rollback operations')
+  .option('-l, --list', 'List available rollback snapshots')
+  .option('-r, --restore <index>', 'Restore to snapshot index')
+  .option('-c, --clear', 'Clear all snapshots')
+  .action((options) => {
+    if (options.list || Object.keys(options).length === 0) {
+      const snapshots = listSnapshots();
+      if (snapshots.length === 0) {
+        console.log('No rollback snapshots available');
+      } else {
+        console.log('\n📸 Rollback Snapshots:\n');
+        snapshots.forEach((s, i) => {
+          console.log(`[${i}] ${new Date(s.timestamp).toLocaleString()}`);
+          console.log(`    Reason: ${s.reason}`);
+          console.log(`    Trust: ${(s.derived.trust * 100).toFixed(1)}%`);
+          console.log(`    C_effective: ${(s.derived.C_effective * 100).toFixed(1)}%`);
+          console.log();
+        });
+      }
+    } else if (options.restore !== undefined) {
+      const index = parseInt(options.restore);
+      if (isNaN(index)) {
+        console.log('Invalid snapshot index');
+        process.exit(1);
+      }
+      const success = rollbackToSnapshot(index);
+      if (!success) {
+        process.exit(1);
+      }
+    } else if (options.clear) {
+      clearSnapshots();
     }
   });
 
