@@ -30,7 +30,7 @@ import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRi
 // ============================================================================
 
 /**
- * Classify tool risk level for metrics
+ * Classify tool risk level for metrics (param-aware)
  */
 function classifyToolRisk(toolName: string, params: Record<string, any>): ToolRiskLevel {
   // Core: High-risk operations
@@ -38,18 +38,33 @@ function classifyToolRisk(toolName: string, params: Record<string, any>): ToolRi
     return 'core';
   }
 
-  // Write: Operations that mutate state
+  // Write operations with param-aware risk
   if (toolName === 'write_file') {
+    const path = params.path?.toLowerCase() || '';
+
+    // Core: Critical files
+    if (path.match(/(^|\/)((config|src|package)\.json|\.env|tsconfig|\.git)/)) {
+      return 'core';
+    }
+
+    // Write: Regular files
     return 'write';
   }
 
   if (toolName === 'run_command') {
     const cmd = params.command?.toLowerCase() || '';
-    // Write operations
-    if (cmd.match(/^(git\s+(commit|add|push|rm)|npm\s+install|mkdir|rm|mv|cp|touch|echo\s+.*>)/)) {
+
+    // Core: Destructive/dangerous commands (denylist)
+    if (cmd.match(/\b(rm\s+-rf?|git\s+reset\s+--hard|git\s+push\s+(-f|--force)|sudo|chmod\s+777|dd\s+if=)/)) {
+      return 'core';
+    }
+
+    // Write: Mutation operations
+    if (cmd.match(/^(git\s+(commit|add|push|rm)|npm\s+install|mkdir|rm\s+[^-]|mv|cp|touch|echo\s+.*>)/)) {
       return 'write';
     }
-    // Everything else is readonly
+
+    // Readonly: Queries and safe operations
     return 'readonly';
   }
 

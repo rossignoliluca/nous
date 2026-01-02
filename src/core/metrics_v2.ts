@@ -87,7 +87,7 @@ export interface ToolCallRecord {
 
 const METRICS_FILE = path.join(process.cwd(), 'data', 'metrics_v2.json');
 const LOOP_HISTORY_FILE = path.join(process.cwd(), 'data', 'loop_history.json');
-const MAX_LOOP_HISTORY = 100;
+const MAX_LOOP_HISTORY = 200;  // Decay: keep only last 200 events to prevent false positives
 
 // ============================================================================
 // CONFIGURATION
@@ -102,6 +102,10 @@ const TRUST_WEIGHTS = {
   write: 0.3,      // Medium weight (more risky)
   core: 0.5,       // High weight (critical operations)
 };
+
+// Minimum evidence thresholds (prevent "trust farming" on easy operations)
+const MIN_WRITE_OPS_FOR_TIER2 = 5;   // trust > 30% requires at least 5 successful write ops
+const MIN_CORE_OPS_FOR_TIER3 = 3;    // trust > 60% requires at least 3 successful core ops
 
 // ============================================================================
 // STORAGE
@@ -229,8 +233,10 @@ export function recordToolCallInLoopHistory(tool: string, params: string, outcom
 export function checkForOperationalLoop(tool: string, params: string, outcome: string): boolean {
   const history = loadLoopHistory();
 
-  // Check recent window (last 10 calls)
-  const recentWindow = history.slice(-10);
+  // Check recent window (last 20 calls, increased from 10)
+  // Why 20: with 200-event history, checking last 10 is too narrow
+  // If system does 100 varied ops, then repeats same 3x, we want to catch it
+  const recentWindow = history.slice(-20);
   const matches = recentWindow.filter(call =>
     call.tool === tool &&
     call.params === params &&
@@ -293,7 +299,21 @@ export function computeDerivedMetrics(metrics: PerformanceMetrics, C_potential: 
   const errorPenalty = 1 - Math.min(1, metrics.totalErrors / 20);
   const stabilityBonus = Math.min(1, metrics.loopFreeSteps / 100); // Slower scaling
 
-  const trust_calculated = trust_base * loopPenalty * errorPenalty * stabilityBonus;
+  let trust_calculated = trust_base * loopPenalty * errorPenalty * stabilityBonus;
+
+  // ==================== MINIMUM EVIDENCE THRESHOLDS ====================
+  // Prevent "trust farming" on readonly operations
+
+  // Tier 1 (0-30%): Can be achieved with readonly only
+  // Tier 2 (30-60%): Requires at least MIN_WRITE_OPS_FOR_TIER2 successful write ops
+  if (trust_calculated > 0.30 && metrics.writeCallsValid < MIN_WRITE_OPS_FOR_TIER2) {
+    trust_calculated = Math.min(trust_calculated, 0.30);
+  }
+
+  // Tier 3 (60%+): Requires at least MIN_CORE_OPS_FOR_TIER3 successful core ops
+  if (trust_calculated > 0.60 && metrics.coreCallsValid < MIN_CORE_OPS_FOR_TIER3) {
+    trust_calculated = Math.min(trust_calculated, 0.60);
+  }
 
   // Apply EMA smoothing
   const trust = EMA_ALPHA * trust_calculated + (1 - EMA_ALPHA) * metrics.trustEMA;
