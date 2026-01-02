@@ -253,12 +253,14 @@ export const TOOLS: Tool[] = [
     description: 'Save an important insight to memory for future reference.',
     parameters: [
       { name: 'insight', type: 'string', description: 'The insight to remember', required: true },
-      { name: 'category', type: 'string', description: 'Category: fact, preference, pattern, principle', required: true }
+      { name: 'category', type: 'string', description: 'Category: fact, preference, pattern, principle, entity', required: true }
     ],
     execute: async (params) => {
+      const validCategories = ['fact', 'preference', 'pattern', 'principle', 'entity'];
+      const category = validCategories.includes(params.category) ? params.category : 'fact';
       const memory = getMemory();
-      const result = memory.addInsight(params.insight, 'agent', params.category as any, 0.8);
-      return { success: true, output: `Saved insight: ${result.id}` };
+      const result = memory.addInsight(params.insight, 'agent', category as any, 0.8);
+      return { success: true, output: `Saved insight: ${result.id} (category: ${category})` };
     }
   },
 
@@ -516,6 +518,7 @@ export async function executeAgent(
 ): Promise<AgentResult> {
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
+  const recentToolCalls: string[] = []; // Track recent tool calls to detect loops
 
   // Initialize cognitive system
   const cognitive = getCognitiveSystem();
@@ -616,6 +619,20 @@ export async function executeAgent(
         messages.push(
           { role: 'assistant', content: response.content },
           { role: 'user', content: `<observation><error>${errorMsg}</error></observation>\n\nPlease provide ALL required parameters in the <params> JSON.` }
+        );
+        continue;
+      }
+
+      // Detect looping - same tool called 3+ times in last 5 calls
+      recentToolCalls.push(toolName);
+      if (recentToolCalls.length > 5) recentToolCalls.shift();
+
+      const sameToolCount = recentToolCalls.filter(t => t === toolName).length;
+      if (sameToolCount >= 3) {
+        console.log(`⚠️ Loop detected: ${toolName} called ${sameToolCount} times`);
+        messages.push(
+          { role: 'assistant', content: response.content },
+          { role: 'user', content: `<observation><warning>You are repeating the same tool (${toolName}) without progress. Either:\n1. Use a DIFFERENT tool\n2. Take a different approach\n3. Provide your final <answer> with what you've learned so far\n\nDo NOT call ${toolName} again.</warning></observation>` }
         );
         continue;
       }
