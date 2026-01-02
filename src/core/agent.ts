@@ -23,10 +23,43 @@ import * as gitActions from '../actions/git';
 import * as shellActions from '../actions/shell';
 import * as webActions from '../actions/web';
 import { getCognitiveSystem } from '../memory/cognitive';
-import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection } from './metrics';
+import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRiskLevel, recordToolCallInLoopHistory, checkForOperationalLoop } from './metrics_v2';
 
 // ============================================================================
 // TYPES
+// ============================================================================
+
+/**
+ * Classify tool risk level for metrics
+ */
+function classifyToolRisk(toolName: string, params: Record<string, any>): ToolRiskLevel {
+  // Core: High-risk operations
+  if (toolName === 'modify_self_config') {
+    return 'core';
+  }
+
+  // Write: Operations that mutate state
+  if (toolName === 'write_file') {
+    return 'write';
+  }
+
+  if (toolName === 'run_command') {
+    const cmd = params.command?.toLowerCase() || '';
+    // Write operations
+    if (cmd.match(/^(git\s+(commit|add|push|rm)|npm\s+install|mkdir|rm|mv|cp|touch|echo\s+.*>)/)) {
+      return 'write';
+    }
+    // Everything else is readonly
+    return 'readonly';
+  }
+
+  // Readonly: Safe operations
+  // read_file, list_files, glob, grep, web_search, web_fetch, etc.
+  return 'readonly';
+}
+
+// ============================================================================
+// TYPES (continued)
 // ============================================================================
 
 export interface Tool {
@@ -812,8 +845,7 @@ export async function executeAgent(
 ): Promise<AgentResult> {
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
-  const recentToolCalls: string[] = []; // Track recent tool calls to detect loops
-  const toolCallHistory: Array<{ tool: string; params: string; outcome: string }> = []; // Track tool calls with outcomes for operational loop detection
+  const recentToolCalls: string[] = []; // Track recent tool calls to detect loops (simple detection)
 
   // ==================== BUDGET GUARD (PHASE 0) ====================
   const MAX_TOKENS = 100000;  // Hard limit
@@ -1013,8 +1045,9 @@ export async function executeAgent(
         console.log('❌ EXECUTION TERMINATED: Schema validation failure');
         console.log('━'.repeat(50));
 
-        // Record invalid tool call in metrics
-        recordToolCallInvalid();
+        // Record invalid tool call in metrics (classify risk even for failed calls)
+        const riskLevel = classifyToolRisk(toolName, params);
+        recordToolCallInvalid(riskLevel);
 
         return {
           success: false,
@@ -1024,8 +1057,9 @@ export async function executeAgent(
         };
       }
 
-      // Record valid tool call in metrics
-      recordToolCallValid();
+      // Classify risk level and record valid tool call
+      const riskLevel = classifyToolRisk(toolName, params);
+      recordToolCallValid(riskLevel);
 
       // ==================== LOOP DETECTION (PHASE 0) ====================
       // Simple loop detection: same tool name called too often
@@ -1073,26 +1107,16 @@ export async function executeAgent(
 
       // ==================== OPERATIONAL LOOP DETECTION (PHASE 0) ====================
       // ERR_LOOP_OPERATIONAL: Same tool + same params + same outcome = stuck
+      // Using PERSISTENT history (metrics_v2)
       const paramsKey = JSON.stringify(params);
       const outcomeKey = result.success ? 'SUCCESS' : `ERROR:${result.error?.slice(0, 50)}`;
-      const callSignature = `${toolName}|${paramsKey}|${outcomeKey}`;
 
-      // Record this call
-      toolCallHistory.push({
-        tool: toolName,
-        params: paramsKey,
-        outcome: outcomeKey
-      });
+      // Record this call in persistent history
+      recordToolCallInLoopHistory(toolName, paramsKey, outcomeKey);
 
-      // Check for operational loops (same call signature repeated 3+ times)
-      const matchingCalls = toolCallHistory.filter(call =>
-        call.tool === toolName &&
-        call.params === paramsKey &&
-        call.outcome === outcomeKey
-      );
-
-      if (matchingCalls.length >= 3) {
-        const errorMsg = `ERR_LOOP_OPERATIONAL: Operational loop detected.\n\nTool '${toolName}' with identical parameters and outcome has been called ${matchingCalls.length} times:\n\nParameters: ${paramsKey.slice(0, 200)}${paramsKey.length > 200 ? '...' : ''}\nOutcome: ${outcomeKey}\n\nThe system is stuck in a deterministic loop. This indicates:\n- The approach is fundamentally flawed\n- The tool cannot accomplish the desired outcome with these parameters\n- A different strategy is required\n\nExecution terminated to prevent infinite loops.`;
+      // Check for operational loops (persistent across invocations)
+      if (checkForOperationalLoop(toolName, paramsKey, outcomeKey)) {
+        const errorMsg = `ERR_LOOP_OPERATIONAL: Operational loop detected.\n\nTool '${toolName}' with identical parameters and outcome has been called 3+ times:\n\nParameters: ${paramsKey.slice(0, 200)}${paramsKey.length > 200 ? '...' : ''}\nOutcome: ${outcomeKey}\n\nThe system is stuck in a deterministic loop. This indicates:\n- The approach is fundamentally flawed\n- The tool cannot accomplish the desired outcome with these parameters\n- A different strategy is required\n\nExecution terminated to prevent infinite loops.`;
 
         console.log(`\n🛑 ${errorMsg}\n`);
         console.log('━'.repeat(50));

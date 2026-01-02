@@ -37,7 +37,7 @@ import { getMemory } from './memory/store';
 import { AXIOMS } from './core/axioms';
 import { selfImprovementCycle, analyzeForImprovements, proposeImprovement } from './core/improve';
 import { startDaemon, stopDaemon, getDaemonStatus, runOnce } from './core/daemon';
-import { generateReport, getMetrics, resetMetrics } from './core/metrics';
+import { generateReport, getMetrics, resetMetrics } from './core/metrics_v2';
 import { listSnapshots, rollbackToSnapshot, clearSnapshots } from './core/rollback';
 import { fullValidate } from './testing/validation';
 import { generateExplorationReport, getExplorationStatus, adjustBudgetManual, resetExploration } from './core/exploration';

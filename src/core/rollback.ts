@@ -12,7 +12,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { getMetrics, DerivedMetrics, PerformanceMetrics } from './metrics';
+import { getMetrics, DerivedMetrics, PerformanceMetrics } from './metrics_v2';
 import { loadSelf, saveSelf, SelfConfig } from './self';
 
 interface RollbackSnapshot {
