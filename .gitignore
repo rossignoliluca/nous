@@ -24,3 +24,7 @@ data/self_model.json
 data/*.json
 *.log
 sandbox/
+
+# Runtime data (autonomous cycles)
+data/cycles/
+data/critical_events/
