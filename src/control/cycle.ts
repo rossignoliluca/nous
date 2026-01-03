@@ -362,7 +362,14 @@ export async function runAutonomousCycle(options: CycleOptions = {}): Promise<Cy
     console.log('🤖 Generating solution...\n');
 
     try {
-      const agentResult = await executeAgent(task.intent, 5, [], 5 * 60 * 1000); // 5 steps, 5 min timeout
+      // Pass task.context to agent for factual grounding
+      const agentResult = await executeAgent(
+        task.intent,
+        5,
+        [],
+        5 * 60 * 1000,
+        task.context // Pass facts, constraints, file, type, rule
+      );
 
       if (!agentResult.success) {
         console.log(`\n❌ Generation failed: ${agentResult.answer}\n`);

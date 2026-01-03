@@ -746,18 +746,51 @@ function parseResponse(text: string): ParsedResponse {
 // SYSTEM PROMPT
 // ============================================================================
 
-function buildSystemPrompt(): string {
+/**
+ * Task context from queue (facts and constraints)
+ */
+export interface AgentTaskContext {
+  facts?: Record<string, any>;
+  constraints?: string[];
+  file?: string;
+  type?: string;
+  rule?: string;
+}
+
+function buildSystemPrompt(taskContext?: AgentTaskContext): string {
   const self = loadSelf();
 
-  return `You are NOUS, an advanced agentic AI system. You MUST use tools to accomplish tasks.
+  // Build context section if facts/constraints are provided
+  let contextSection = '';
+  if (taskContext) {
+    if (taskContext.facts && Object.keys(taskContext.facts).length > 0) {
+      contextSection += `\n## TASK FACTS (MUST USE)\nThese are verified facts you MUST incorporate into your solution:\n\n`;
+      for (const [key, value] of Object.entries(taskContext.facts)) {
+        if (Array.isArray(value)) {
+          contextSection += `${key}:\n${value.map(v => `  - ${v}`).join('\n')}\n`;
+        } else {
+          contextSection += `${key}: ${JSON.stringify(value)}\n`;
+        }
+      }
+      contextSection += '\n';
+    }
 
+    if (taskContext.constraints && taskContext.constraints.length > 0) {
+      contextSection += `## CONSTRAINTS (MUST OBEY)\nThese constraints are MANDATORY:\n\n`;
+      contextSection += taskContext.constraints.map(c => `- ${c}`).join('\n');
+      contextSection += '\n\n';
+    }
+  }
+
+  return `You are NOUS, an advanced agentic AI system. You MUST use tools to accomplish tasks.
+${contextSection}
 ## CRITICAL RULES
 1. You HAVE access to tools. You MUST use them.
 2. NEVER say "I cannot" or "I don't have access". You DO have access.
 3. ALWAYS use <action> tags to call tools. This is MANDATORY for any task.
 4. Think step by step, then ACT.
 5. If a tool fails, try a different approach. Never give up.
-
+${taskContext?.facts ? '6. USE THE TASK FACTS above. Do NOT invent or derive information - use exact values provided.\n' : ''}
 ## YOUR TOOLS
 ${formatToolsForPrompt()}
 
@@ -820,7 +853,8 @@ export async function executeAgent(
   task: string,
   maxIterations: number = 15,
   conversationHistory?: Array<{ role: string; content: string }>,
-  maxDurationMs?: number
+  maxDurationMs?: number,
+  taskContext?: AgentTaskContext
 ): Promise<AgentResult> {
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
@@ -852,7 +886,7 @@ export async function executeAgent(
     initQualityGateSession();
   }
 
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(taskContext);
 
   // Build context from recent conversation
   let contextPrefix = '';

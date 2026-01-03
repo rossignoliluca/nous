@@ -1,0 +1,61 @@
+{
+  "queueId": "autonomy-smoke-docs",
+  "description": "Autonomy smoke test: factual grounding verification",
+  "created": "2026-01-03T09:00:00Z",
+  "tasks": [
+    {
+      "id": "SMOKE-DOCS-01",
+      "intent": "Create CHANGELOG.md with exact version and metrics from facts",
+      "priority": 0.95,
+      "tags": ["smoke-test", "docs", "factual"],
+      "context": {
+        "file": "CHANGELOG.md",
+        "type": "create",
+        "rule": "R9",
+        "facts": {
+          "version": "0.1.0",
+          "date": "2026-01-03",
+          "testsPassed": "51/51",
+          "goldenSetAccuracy": "10/10",
+          "keyFeatures": [
+            "risk_classifier extraction to single source of truth",
+            "control-plane / work-plane architectural separation",
+            "constitution.ts centralized governance constants"
+          ]
+        },
+        "constraints": [
+          "MUST use exact version [0.1.0] - 2026-01-03 (not Unreleased)",
+          "MUST include exact numbers: 51/51 tests, 10/10 golden set",
+          "MUST mention risk_classifier, control-plane, constitution.ts",
+          "NO generic templates, NO placeholders"
+        ]
+      }
+    },
+    {
+      "id": "SMOKE-DOCS-02",
+      "intent": "Create CONTRIBUTING.md explaining PR-first workflow and quality gate",
+      "priority": 0.90,
+      "tags": ["smoke-test", "docs", "process"],
+      "context": {
+        "file": "CONTRIBUTING.md",
+        "type": "create",
+        "rule": "R9",
+        "facts": {
+          "workflow": "PR-first autonomous cycle",
+          "qualityGate": "G6 deterministic (no LLM)",
+          "goldenSetRequirement": "10/10 test cases must pass (100% accuracy)",
+          "outcomes": "PASS → PR, REVIEW → Issue, REJECT → logged",
+          "protectedSurface": "src/control/** cannot be modified by autonomous cycles",
+          "caps": "3 PRs, 5 REVIEWs per cycle"
+        },
+        "constraints": [
+          "MUST explain G6 as deterministic, not LLM-based",
+          "MUST state golden set requirement: 10/10 cases (100%)",
+          "MUST explain protected surface: src/control/**",
+          "MUST describe three outcomes: PASS/REVIEW/REJECT",
+          "NO generic contribution guide, NO vague descriptions"
+        ]
+      }
+    }
+  ]
+}

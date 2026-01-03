@@ -28,3 +28,4 @@ sandbox/
 # Runtime data (autonomous cycles)
 data/cycles/
 data/critical_events/
+data/quality_gate/
