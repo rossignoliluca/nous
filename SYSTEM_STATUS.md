@@ -17,6 +17,18 @@ Tutti i 4 requisiti critici sono stati verificati:
 
 ---
 
+## STABILITY MODE
+
+**Status:** Active
+
+During Stability Mode, the following observation rules are enforced:
+- No governance changes are allowed.
+- Only factual statements are permitted; no speculative claims.
+
+This ensures system integrity and stability during the observation period.
+
+---
+
 ## ARCHITECTURE OVERVIEW
 
 ### Safety Triangle (Complete)
