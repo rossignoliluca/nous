@@ -1,0 +1,691 @@
+{
+  "queueId": "ab-experiment-large",
+  "description": "Large A/B test: 60 tasks (docs + tests + refactor + features)",
+  "created": "2026-01-03T10:45:00Z",
+  "tasks": [
+    {
+      "id": "DOC-001",
+      "intent": "Add JSDoc comments to all exported functions in quality_gate.ts",
+      "priority": 0.85,
+      "tags": ["docs", "quality"],
+      "context": {
+        "file": "src/control/quality_gate.ts",
+        "type": "documentation",
+        "zone": "public API"
+      }
+    },
+    {
+      "id": "DOC-002",
+      "intent": "Add JSDoc to replay_auditor.ts public functions",
+      "priority": 0.82,
+      "tags": ["docs", "audit"],
+      "context": {
+        "file": "src/control/replay_auditor.ts",
+        "type": "documentation",
+        "zone": "exports"
+      }
+    },
+    {
+      "id": "DOC-003",
+      "intent": "Document ab_comparison.ts metrics calculation methods",
+      "priority": 0.80,
+      "tags": ["docs", "metrics"],
+      "context": {
+        "file": "src/control/ab_comparison.ts",
+        "type": "documentation",
+        "zone": "metrics"
+      }
+    },
+    {
+      "id": "DOC-004",
+      "intent": "Add JSDoc to exploration.ts budget functions",
+      "priority": 0.78,
+      "tags": ["docs", "budget"],
+      "context": {
+        "file": "src/core/exploration.ts",
+        "type": "documentation",
+        "zone": "budget API"
+      }
+    },
+    {
+      "id": "DOC-005",
+      "intent": "Add type annotations to agent.ts tool registry",
+      "priority": 0.75,
+      "tags": ["docs", "types"],
+      "context": {
+        "file": "src/work/agent.ts",
+        "type": "documentation",
+        "zone": "TOOLS array"
+      }
+    },
+    {
+      "id": "DOC-006",
+      "intent": "Document task_queue.ts protected file checking logic",
+      "priority": 0.73,
+      "tags": ["docs", "safety"],
+      "context": {
+        "file": "src/work/task_queue.ts",
+        "type": "documentation",
+        "zone": "isProtectedFile"
+      }
+    },
+    {
+      "id": "DOC-007",
+      "intent": "Add JSDoc to metrics_v2.ts recording functions",
+      "priority": 0.70,
+      "tags": ["docs", "metrics"],
+      "context": {
+        "file": "src/core/metrics_v2.ts",
+        "type": "documentation",
+        "zone": "public API"
+      }
+    },
+    {
+      "id": "DOC-008",
+      "intent": "Document risk_classifier.ts classification logic",
+      "priority": 0.68,
+      "tags": ["docs", "risk"],
+      "context": {
+        "file": "src/core/risk_classifier.ts",
+        "type": "documentation",
+        "zone": "classifyToolRisk"
+      }
+    },
+    {
+      "id": "DOC-009",
+      "intent": "Add JSDoc to rollback.ts snapshot functions",
+      "priority": 0.65,
+      "tags": ["docs", "rollback"],
+      "context": {
+        "file": "src/core/rollback.ts",
+        "type": "documentation",
+        "zone": "snapshot API"
+      }
+    },
+    {
+      "id": "DOC-010",
+      "intent": "Document constitution.ts governance structure",
+      "priority": 0.63,
+      "tags": ["docs", "governance"],
+      "context": {
+        "file": "src/core/constitution.ts",
+        "type": "documentation",
+        "zone": "CONSTITUTION object"
+      }
+    },
+    {
+      "id": "DOC-011",
+      "intent": "Add JSDoc to self.ts configuration functions",
+      "priority": 0.60,
+      "tags": ["docs", "config"],
+      "context": {
+        "file": "src/core/self.ts",
+        "type": "documentation",
+        "zone": "loadSelf/saveSelf"
+      }
+    },
+    {
+      "id": "DOC-012",
+      "intent": "Document axioms.ts validation logic",
+      "priority": 0.58,
+      "tags": ["docs", "axioms"],
+      "context": {
+        "file": "src/core/axioms.ts",
+        "type": "documentation",
+        "zone": "validation functions"
+      }
+    },
+    {
+      "id": "DOC-013",
+      "intent": "Add inline comments to tool_compiler.ts compilation flow",
+      "priority": 0.55,
+      "tags": ["docs", "compiler"],
+      "context": {
+        "file": "src/control/tool_compiler.ts",
+        "type": "documentation",
+        "zone": "compilation logic"
+      }
+    },
+    {
+      "id": "DOC-014",
+      "intent": "Document critical_events.ts event types",
+      "priority": 0.53,
+      "tags": ["docs", "events"],
+      "context": {
+        "file": "src/control/critical_events.ts",
+        "type": "documentation",
+        "zone": "event logging"
+      }
+    },
+    {
+      "id": "DOC-015",
+      "intent": "Add JSDoc to improve.ts analysis functions",
+      "priority": 0.50,
+      "tags": ["docs", "improve"],
+      "context": {
+        "file": "src/work/improve.ts",
+        "type": "documentation",
+        "zone": "analyzeForImprovements"
+      }
+    },
+    {
+      "id": "DOC-016",
+      "intent": "Document loop.ts conversation flow",
+      "priority": 0.48,
+      "tags": ["docs", "loop"],
+      "context": {
+        "file": "src/core/loop.ts",
+        "type": "documentation",
+        "zone": "nousLoop"
+      }
+    },
+    {
+      "id": "DOC-017",
+      "intent": "Add JSDoc to daemon.ts lifecycle functions",
+      "priority": 0.45,
+      "tags": ["docs", "daemon"],
+      "context": {
+        "file": "src/core/daemon.ts",
+        "type": "documentation",
+        "zone": "start/stop"
+      }
+    },
+    {
+      "id": "DOC-018",
+      "intent": "Document memory store API in store.ts",
+      "priority": 0.43,
+      "tags": ["docs", "memory"],
+      "context": {
+        "file": "src/memory/store.ts",
+        "type": "documentation",
+        "zone": "public API"
+      }
+    },
+    {
+      "id": "TEST-001",
+      "intent": "Add test for replay_auditor golden set validation check",
+      "priority": 0.90,
+      "tags": ["test", "audit"],
+      "context": {
+        "file": "src/testing/auditor.test.ts",
+        "type": "test",
+        "zone": "golden set checks"
+      }
+    },
+    {
+      "id": "TEST-002",
+      "intent": "Add test for replay_auditor PR cap violation detection",
+      "priority": 0.88,
+      "tags": ["test", "audit"],
+      "context": {
+        "file": "src/testing/auditor.test.ts",
+        "type": "test",
+        "zone": "caps enforcement"
+      }
+    },
+    {
+      "id": "TEST-003",
+      "intent": "Add test for ab_comparison metrics calculation",
+      "priority": 0.85,
+      "tags": ["test", "ab"],
+      "context": {
+        "file": "src/testing/ab.test.ts",
+        "type": "test",
+        "zone": "metrics"
+      }
+    },
+    {
+      "id": "TEST-004",
+      "intent": "Add test for baseline mode quality gate bypass",
+      "priority": 0.83,
+      "tags": ["test", "baseline"],
+      "context": {
+        "file": "src/testing/quality_gate.test.ts",
+        "type": "test",
+        "zone": "baseline mode"
+      }
+    },
+    {
+      "id": "TEST-005",
+      "intent": "Add test for task context propagation in cycle runner",
+      "priority": 0.80,
+      "tags": ["test", "cycle"],
+      "context": {
+        "file": "src/testing/cycle.test.ts",
+        "type": "test",
+        "zone": "context flow"
+      }
+    },
+    {
+      "id": "TEST-006",
+      "intent": "Add test for exploration budget window reset",
+      "priority": 0.78,
+      "tags": ["test", "budget"],
+      "context": {
+        "file": "src/testing/exploration.test.ts",
+        "type": "test",
+        "zone": "budget reset"
+      }
+    },
+    {
+      "id": "TEST-007",
+      "intent": "Add test for risk_classifier edge cases",
+      "priority": 0.75,
+      "tags": ["test", "risk"],
+      "context": {
+        "file": "src/testing/risk.test.ts",
+        "type": "test",
+        "zone": "edge cases"
+      }
+    },
+    {
+      "id": "TEST-008",
+      "intent": "Add test for protected file glob pattern matching",
+      "priority": 0.73,
+      "tags": ["test", "safety"],
+      "context": {
+        "file": "src/testing/task_queue.test.ts",
+        "type": "test",
+        "zone": "protected files"
+      }
+    },
+    {
+      "id": "TEST-009",
+      "intent": "Add test for operational_gate path normalization",
+      "priority": 0.70,
+      "tags": ["test", "gate"],
+      "context": {
+        "file": "src/testing/gate_smoke.test.ts",
+        "type": "test",
+        "zone": "path safety"
+      }
+    },
+    {
+      "id": "TEST-010",
+      "intent": "Add test for rollback snapshot expiry",
+      "priority": 0.68,
+      "tags": ["test", "rollback"],
+      "context": {
+        "file": "src/testing/guardrails.test.ts",
+        "type": "test",
+        "zone": "snapshot lifecycle"
+      }
+    },
+    {
+      "id": "TEST-011",
+      "intent": "Add test for metrics_v2 derived calculations",
+      "priority": 0.65,
+      "tags": ["test", "metrics"],
+      "context": {
+        "file": "src/testing/metrics.test.ts",
+        "type": "test",
+        "zone": "derived metrics"
+      }
+    },
+    {
+      "id": "TEST-012",
+      "intent": "Add test for tool_compiler incomplete params detection",
+      "priority": 0.63,
+      "tags": ["test", "compiler"],
+      "context": {
+        "file": "src/testing/compiler.test.ts",
+        "type": "test",
+        "zone": "validation"
+      }
+    },
+    {
+      "id": "TEST-013",
+      "intent": "Add test for quality_gate golden set regression",
+      "priority": 0.60,
+      "tags": ["test", "quality"],
+      "context": {
+        "file": "src/testing/quality_gate.test.ts",
+        "type": "test",
+        "zone": "golden set"
+      }
+    },
+    {
+      "id": "TEST-014",
+      "intent": "Add test for agent loop detection mechanism",
+      "priority": 0.58,
+      "tags": ["test", "agent"],
+      "context": {
+        "file": "src/testing/agent.test.ts",
+        "type": "test",
+        "zone": "loop detection"
+      }
+    },
+    {
+      "id": "TEST-015",
+      "intent": "Add test for critical_events logging",
+      "priority": 0.55,
+      "tags": ["test", "events"],
+      "context": {
+        "file": "src/testing/events.test.ts",
+        "type": "test",
+        "zone": "event logging"
+      }
+    },
+    {
+      "id": "TEST-016",
+      "intent": "Add test for constitution caps enforcement",
+      "priority": 0.53,
+      "tags": ["test", "constitution"],
+      "context": {
+        "file": "src/testing/constitution.test.ts",
+        "type": "test",
+        "zone": "caps"
+      }
+    },
+    {
+      "id": "TEST-017",
+      "intent": "Add test for self.ts config validation",
+      "priority": 0.50,
+      "tags": ["test", "config"],
+      "context": {
+        "file": "src/testing/self.test.ts",
+        "type": "test",
+        "zone": "validation"
+      }
+    },
+    {
+      "id": "TEST-018",
+      "intent": "Add test for axioms entityhood preservation",
+      "priority": 0.48,
+      "tags": ["test", "axioms"],
+      "context": {
+        "file": "src/testing/axioms.test.ts",
+        "type": "test",
+        "zone": "A1 validation"
+      }
+    },
+    {
+      "id": "REFACTOR-001",
+      "intent": "Extract duplicated path normalization logic in operational_gate.ts",
+      "priority": 0.87,
+      "tags": ["refactor", "duplication"],
+      "context": {
+        "file": "src/control/operational_gate.ts",
+        "type": "refactor",
+        "zone": "normalizePath",
+        "estimatedBenefit": "Reduced duplication"
+      }
+    },
+    {
+      "id": "REFACTOR-002",
+      "intent": "Extract common audit report formatting to helper function",
+      "priority": 0.84,
+      "tags": ["refactor", "formatting"],
+      "context": {
+        "file": "src/control/replay_auditor.ts",
+        "type": "refactor",
+        "zone": "print functions",
+        "estimatedBenefit": "Improved maintainability"
+      }
+    },
+    {
+      "id": "REFACTOR-003",
+      "intent": "Simplify ab_comparison metrics calculation logic",
+      "priority": 0.81,
+      "tags": ["refactor", "complexity"],
+      "context": {
+        "file": "src/control/ab_comparison.ts",
+        "type": "refactor",
+        "zone": "calculateMetrics",
+        "estimatedBenefit": "Reduced cognitive load"
+      }
+    },
+    {
+      "id": "REFACTOR-004",
+      "intent": "Extract magic numbers to constants in exploration.ts",
+      "priority": 0.78,
+      "tags": ["refactor", "constants"],
+      "context": {
+        "file": "src/core/exploration.ts",
+        "type": "refactor",
+        "zone": "budget thresholds",
+        "estimatedBenefit": "Improved clarity"
+      }
+    },
+    {
+      "id": "REFACTOR-005",
+      "intent": "Rename ambiguous variables in quality_gate.ts decision logic",
+      "priority": 0.75,
+      "tags": ["refactor", "naming"],
+      "context": {
+        "file": "src/control/quality_gate.ts",
+        "type": "refactor",
+        "zone": "classifyPatch",
+        "estimatedBenefit": "Better readability"
+      }
+    },
+    {
+      "id": "REFACTOR-006",
+      "intent": "Extract repeated git command logic in git actions",
+      "priority": 0.72,
+      "tags": ["refactor", "duplication"],
+      "context": {
+        "file": "src/actions/git.ts",
+        "type": "refactor",
+        "zone": "command execution",
+        "estimatedBenefit": "DRY principle"
+      }
+    },
+    {
+      "id": "REFACTOR-007",
+      "intent": "Simplify agent.ts tool execution error handling",
+      "priority": 0.69,
+      "tags": ["refactor", "error-handling"],
+      "context": {
+        "file": "src/work/agent.ts",
+        "type": "refactor",
+        "zone": "tool execution loop",
+        "estimatedBenefit": "Reduced nesting"
+      }
+    },
+    {
+      "id": "REFACTOR-008",
+      "intent": "Extract common file existence checks to utility",
+      "priority": 0.66,
+      "tags": ["refactor", "utility"],
+      "context": {
+        "file": "src/actions/fs.ts",
+        "type": "refactor",
+        "zone": "file operations",
+        "estimatedBenefit": "Reusability"
+      }
+    },
+    {
+      "id": "REFACTOR-009",
+      "intent": "Consolidate metrics recording in metrics_v2.ts",
+      "priority": 0.63,
+      "tags": ["refactor", "consolidation"],
+      "context": {
+        "file": "src/core/metrics_v2.ts",
+        "type": "refactor",
+        "zone": "recording functions",
+        "estimatedBenefit": "Simpler API"
+      }
+    },
+    {
+      "id": "REFACTOR-010",
+      "intent": "Extract repeated JSON parsing to helper in cycle.ts",
+      "priority": 0.60,
+      "tags": ["refactor", "duplication"],
+      "context": {
+        "file": "src/control/cycle.ts",
+        "type": "refactor",
+        "zone": "report generation",
+        "estimatedBenefit": "Less boilerplate"
+      }
+    },
+    {
+      "id": "REFACTOR-011",
+      "intent": "Simplify task_queue.ts protected file checking",
+      "priority": 0.57,
+      "tags": ["refactor", "logic"],
+      "context": {
+        "file": "src/work/task_queue.ts",
+        "type": "refactor",
+        "zone": "isProtectedFile",
+        "estimatedBenefit": "Clearer logic"
+      }
+    },
+    {
+      "id": "REFACTOR-012",
+      "intent": "Extract common shell command patterns in shell actions",
+      "priority": 0.54,
+      "tags": ["refactor", "patterns"],
+      "context": {
+        "file": "src/actions/shell.ts",
+        "type": "refactor",
+        "zone": "command execution",
+        "estimatedBenefit": "Consistency"
+      }
+    },
+    {
+      "id": "REFACTOR-013",
+      "intent": "Consolidate error message formatting across modules",
+      "priority": 0.51,
+      "tags": ["refactor", "consistency"],
+      "context": {
+        "file": "src/core/errors.ts",
+        "type": "refactor",
+        "zone": "error formatting",
+        "estimatedBenefit": "Uniform errors"
+      }
+    },
+    {
+      "id": "REFACTOR-014",
+      "intent": "Extract timestamp formatting to utility function",
+      "priority": 0.48,
+      "tags": ["refactor", "utility"],
+      "context": {
+        "file": "src/utils/time.ts",
+        "type": "refactor",
+        "zone": "timestamp handling",
+        "estimatedBenefit": "Reusability"
+      }
+    },
+    {
+      "id": "REFACTOR-015",
+      "intent": "Simplify rollback.ts snapshot comparison logic",
+      "priority": 0.45,
+      "tags": ["refactor", "simplification"],
+      "context": {
+        "file": "src/core/rollback.ts",
+        "type": "refactor",
+        "zone": "comparison",
+        "estimatedBenefit": "Less complexity"
+      }
+    },
+    {
+      "id": "FEATURE-001",
+      "intent": "Add --quiet flag to cycle command for minimal output",
+      "priority": 0.79,
+      "tags": ["feature", "cli"],
+      "context": {
+        "file": "src/index.ts",
+        "type": "feature",
+        "zone": "cycle command",
+        "estimatedBenefit": "Better UX for CI"
+      }
+    },
+    {
+      "id": "FEATURE-002",
+      "intent": "Add cycle report summary to audit output",
+      "priority": 0.76,
+      "tags": ["feature", "audit"],
+      "context": {
+        "file": "src/control/replay_auditor.ts",
+        "type": "feature",
+        "zone": "printAuditReport",
+        "estimatedBenefit": "More context"
+      }
+    },
+    {
+      "id": "FEATURE-003",
+      "intent": "Add confidence intervals to AB comparison delta",
+      "priority": 0.73,
+      "tags": ["feature", "statistics"],
+      "context": {
+        "file": "src/control/ab_comparison.ts",
+        "type": "feature",
+        "zone": "delta calculation",
+        "estimatedBenefit": "Statistical rigor"
+      }
+    },
+    {
+      "id": "FEATURE-004",
+      "intent": "Add elapsed time display to cycle progress output",
+      "priority": 0.70,
+      "tags": ["feature", "ux"],
+      "context": {
+        "file": "src/control/cycle.ts",
+        "type": "feature",
+        "zone": "progress logging",
+        "estimatedBenefit": "Better visibility"
+      }
+    },
+    {
+      "id": "FEATURE-005",
+      "intent": "Add color coding to audit report violations",
+      "priority": 0.67,
+      "tags": ["feature", "ux"],
+      "context": {
+        "file": "src/control/replay_auditor.ts",
+        "type": "feature",
+        "zone": "console output",
+        "estimatedBenefit": "Easier scanning"
+      }
+    },
+    {
+      "id": "FEATURE-006",
+      "intent": "Add budget warning when approaching ceiling",
+      "priority": 0.64,
+      "tags": ["feature", "budget"],
+      "context": {
+        "file": "src/core/exploration.ts",
+        "type": "feature",
+        "zone": "canTakeRisk",
+        "estimatedBenefit": "Proactive feedback"
+      }
+    },
+    {
+      "id": "FEATURE-007",
+      "intent": "Add task duration histogram to cycle report",
+      "priority": 0.61,
+      "tags": ["feature", "metrics"],
+      "context": {
+        "file": "src/control/cycle.ts",
+        "type": "feature",
+        "zone": "report generation",
+        "estimatedBenefit": "Performance insights"
+      }
+    },
+    {
+      "id": "FEATURE-008",
+      "intent": "Add quality gate decision distribution to session stats",
+      "priority": 0.58,
+      "tags": ["feature", "stats"],
+      "context": {
+        "file": "src/control/quality_gate_integration.ts",
+        "type": "feature",
+        "zone": "session tracking",
+        "estimatedBenefit": "Better visibility"
+      }
+    },
+    {
+      "id": "FEATURE-009",
+      "intent": "Add CSV export option to AB comparison results",
+      "priority": 0.55,
+      "tags": ["feature", "export"],
+      "context": {
+        "file": "src/control/ab_comparison.ts",
+        "type": "feature",
+        "zone": "output formats",
+        "estimatedBenefit": "Excel analysis"
+      }
+    }
+  ]
+}
