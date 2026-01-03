@@ -23,7 +23,7 @@ import { loadSelf, SelfConfig, printSelfStatus, increaseTrust } from './self';
 import { getMemory, MemoryStore, Session } from '../memory/store';
 import { complete, evaluate as llmEvaluate, summarizeConversation, LLMMessage } from '../llm';
 import { listActions } from '../actions';
-import { runAgent, requiresAgent } from './agent';
+import { runAgent, requiresAgent } from '../work/agent';
 import {
   getCognitiveSystem,
   CognitiveSystem,

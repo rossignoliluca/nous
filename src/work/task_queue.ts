@@ -140,6 +140,11 @@ export function removeTask(queue: TaskQueue, taskId: string): TaskQueue {
 export function isProtectedFile(filePath: string): boolean {
   const normalized = filePath.toLowerCase();
 
+  // Path-based protection: entire control-plane directory
+  if (normalized.includes('src/control/')) {
+    return true;
+  }
+
   const protectedPatterns = [
     // Core axioms and gates
     'axiom',
@@ -148,7 +153,7 @@ export function isProtectedFile(filePath: string): boolean {
     'safety_gate',
     'silence',
 
-    // Cycle runner (control plane)
+    // Cycle runner (control plane) - kept for backward compatibility
     'cycle.ts',
     'task_queue.ts',
     'tool_compiler.ts',

@@ -1,0 +1,100 @@
+{
+  "queueId": "github-cleanup-2026-01-03",
+  "description": "Repository hygiene and documentation clarity for v0.1.0+",
+  "created": "2026-01-03T01:00:00Z",
+  "tasks": [
+    {
+      "id": "CLEANUP-001",
+      "intent": "Create CHANGELOG.md with release history starting from v0.1.0",
+      "priority": 0.95,
+      "tags": ["docs", "release"],
+      "context": {
+        "file": "CHANGELOG.md",
+        "type": "create",
+        "guidelines": [
+          "Follow Keep a Changelog format (https://keepachangelog.com)",
+          "Start with v0.1.0 (2026-01-03)",
+          "Sections: Added, Changed, Fixed",
+          "Keep entries concise (1-2 lines each)",
+          "Include: risk_classifier refactor, test suite 51/51, golden set 10/10"
+        ]
+      }
+    },
+    {
+      "id": "CLEANUP-002",
+      "intent": "Create ARCHITECTURE.md explaining control-plane/work-plane philosophy",
+      "priority": 0.90,
+      "tags": ["docs", "architecture"],
+      "context": {
+        "file": "ARCHITECTURE.md",
+        "type": "create",
+        "guidelines": [
+          "Explain three-layer architecture: control/, work/, core/",
+          "control/ = cycle runner, gates, quality gate, auditor (immutable surface)",
+          "work/ = agent policies, improvement proposals, task execution",
+          "core/ = shared (axioms, self, metrics, risk_classifier)",
+          "One-way dependency: work → core ← control (work never imports control)",
+          "Include diagram (ASCII art acceptable)",
+          "Explain why: prevents autopoiesis from corrupting judges"
+        ]
+      }
+    },
+    {
+      "id": "CLEANUP-003",
+      "intent": "Create CONTRIBUTING.md with PR-first workflow and REVIEW tag system",
+      "priority": 0.85,
+      "tags": ["docs", "process"],
+      "context": {
+        "file": "CONTRIBUTING.md",
+        "type": "create",
+        "guidelines": [
+          "Explain PR-first autonomous cycle workflow",
+          "Quality Gate G6: deterministic (no LLM), 100% golden set accuracy",
+          "Three outcomes: PASS → PR, REVIEW → Issue, REJECT → logged",
+          "REVIEW tags: HS1-HS2 (surface area), R1-R10 (rules)",
+          "Golden set: 10 test cases (5 PASS, 5 REJECT) must maintain 100%",
+          "How to add new rules: update golden set first, then G6 logic",
+          "Protected files: control-plane files cannot be modified by autonomous cycles",
+          "Testing: 51/51 tests must pass before merge"
+        ]
+      }
+    },
+    {
+      "id": "CLEANUP-004",
+      "intent": "Update README.md to reference ARCHITECTURE.md and add 'Non-goals' section",
+      "priority": 0.80,
+      "tags": ["docs", "readme"],
+      "context": {
+        "file": "README.md",
+        "type": "modify",
+        "guidelines": [
+          "Add after '## Architecture' section: reference to ARCHITECTURE.md",
+          "Add '## Non-goals' section listing what NOUS is NOT trying to be",
+          "Non-goals examples: production web service, general-purpose chatbot, API-first tool",
+          "Keep existing content (axioms, config, installation) unchanged",
+          "Add badge: '![Tests](https://img.shields.io/badge/tests-51%2F51-brightgreen)'",
+          "Update Config(NOUS) example to reflect C=0.55 (current state)"
+        ]
+      }
+    },
+    {
+      "id": "CLEANUP-005",
+      "intent": "Update SYSTEM_STATUS.md to reflect v0.1.0 release and current metrics",
+      "priority": 0.75,
+      "tags": ["docs", "status"],
+      "context": {
+        "file": "SYSTEM_STATUS.md",
+        "type": "modify",
+        "guidelines": [
+          "Update version to v0.1.0",
+          "Update test status: 51/51 (100%)",
+          "Update trust level: 38.5%",
+          "Update C (Closure): 55%",
+          "Update modification count: 88",
+          "Add 'Recent milestones' section: risk_classifier refactor, golden set 100%",
+          "Add 'Next priorities' section: control-plane split, constitution.ts, replay auditor"
+        ]
+      }
+    }
+  ]
+}

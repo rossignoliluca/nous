@@ -8,7 +8,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { classifyPatch, QualityGateInput, GateDecision } from '../core/quality_gate';
+import { classifyPatch, QualityGateInput, GateDecision } from '../control/quality_gate';
 
 interface GoldenSetCase {
   id: string;

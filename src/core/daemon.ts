@@ -16,7 +16,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { loadSelf, modifySelf, increaseTrust } from './self';
 import { getMemory } from '../memory/store';
-import { selfImprovementCycle, analyzeForImprovements } from './improve';
+import { selfImprovementCycle, analyzeForImprovements } from '../work/improve';
 import { ask } from '../llm';
 
 /**

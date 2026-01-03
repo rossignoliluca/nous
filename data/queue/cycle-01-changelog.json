@@ -1,0 +1,45 @@
+{
+  "queueId": "cycle-01-changelog",
+  "description": "Foundational factual changelog - no interpretation",
+  "created": "2026-01-03T01:15:00Z",
+  "tasks": [
+    {
+      "id": "CLEANUP-001",
+      "intent": "Create initial CHANGELOG.md following Keep a Changelog standard",
+      "priority": 0.95,
+      "tags": ["documentation", "release"],
+      "context": {
+        "file": "CHANGELOG.md",
+        "type": "create",
+        "rule": "R9",
+        "facts": {
+          "version": "0.1.0",
+          "date": "2026-01-03",
+          "features": [
+            "Test suite with 51/51 passing tests (100%)",
+            "Golden set validation with 10/10 test cases (100% accuracy)",
+            "Quality Gate G6 with deterministic rule-based classification",
+            "Operational safety gate with command allowlist and path validation",
+            "Exploration budget system with asymmetric trust adjustment",
+            "Autonomous cycle runner with PR-first workflow"
+          ],
+          "changes": [
+            "Extracted classifyToolRisk to single source of truth (risk_classifier.ts)",
+            "Eliminated code duplication between agent.ts and operational_gate.ts"
+          ],
+          "fixes": [
+            "Test SMOKE 3a now uses critical file to trigger budget check"
+          ]
+        },
+        "constraints": [
+          "Use facts provided above exactly as written",
+          "Follow Keep a Changelog format (https://keepachangelog.com)",
+          "Version header must be [0.1.0] - 2026-01-03",
+          "No 'Unreleased' section",
+          "Sections: Added, Changed, Fixed",
+          "Each entry: 1 line from facts, no modification"
+        ]
+      }
+    }
+  ]
+}

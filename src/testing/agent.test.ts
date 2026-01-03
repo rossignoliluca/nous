@@ -10,7 +10,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TestRunner, test, assert } from './runner';
-import { TOOLS, requiresAgent } from '../core/agent';
+import { TOOLS, requiresAgent } from '../work/agent';
 
 export function registerAgentTests(runner: TestRunner): void {
   // ===========================================

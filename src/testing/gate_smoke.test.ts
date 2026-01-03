@@ -19,7 +19,7 @@ import {
   getGateStats,
   logGateDecision,
   setHighRiskToken
-} from '../core/operational_gate';
+} from '../control/operational_gate';
 import { canTakeRisk, recordAction, resetExploration } from '../core/exploration';
 
 export function registerGateSmokeTests(runner: TestRunner): void {

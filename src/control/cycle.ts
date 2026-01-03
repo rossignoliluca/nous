@@ -30,11 +30,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { executeAgent } from './agent';
-import { loadTaskQueue, generateDefaultTasks, getNextTask, removeTask, isProtectedFile, TaskQueue, MicroTask } from './task_queue';
+import { executeAgent } from '../work/agent';
+import { loadTaskQueue, generateDefaultTasks, getNextTask, removeTask, isProtectedFile, TaskQueue, MicroTask } from '../work/task_queue';
 import { getQualityGateSessionStats, initQualityGateSession } from './quality_gate_integration';
 import { logCriticalEvent } from './critical_events';
-import { getExplorationStatus } from './exploration';
+import { getExplorationStatus } from '../core/exploration';
 
 /**
  * Cycle options

@@ -12,8 +12,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadSelf, modifySelf } from './self';
-import { AXIOMS, validateModification } from './axioms';
+import { loadSelf, modifySelf } from '../core/self';
+import { AXIOMS, validateModification } from '../core/axioms';
 import { getMemory } from '../memory/store';
 import { ask, complete } from '../llm';
 import { status as gitStatus, commit as gitCommit, push as gitPush, diff as gitDiff } from '../actions/git';

@@ -12,7 +12,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { classifyToolRisk } from './risk_classifier';
+import { classifyToolRisk } from '../core/risk_classifier';
 
 /**
  * Gate decision
@@ -409,7 +409,7 @@ export function checkOperationalGate(
 
   if (isRisky) {
     // Dynamic import to avoid circular dependency
-    const { canTakeRisk } = require('./exploration');
+    const { canTakeRisk } = require('../core/exploration');
     const budgetCheck = canTakeRisk();
 
     if (!budgetCheck.allowed) {

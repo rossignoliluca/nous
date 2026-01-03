@@ -35,7 +35,7 @@ import { nousLoop } from './core/loop';
 import { loadSelf, printSelfStatus, saveSelf } from './core/self';
 import { getMemory } from './memory/store';
 import { AXIOMS } from './core/axioms';
-import { selfImprovementCycle, analyzeForImprovements, proposeImprovement } from './core/improve';
+import { selfImprovementCycle, analyzeForImprovements, proposeImprovement } from './work/improve';
 import { startDaemon, stopDaemon, getDaemonStatus, runOnce } from './core/daemon';
 import { generateReport, getMetrics, resetMetrics } from './core/metrics_v2';
 import { listSnapshots, rollbackToSnapshot, clearSnapshots } from './core/rollback';
@@ -444,7 +444,7 @@ program
     }
 
     // Import cycle runner
-    const { runAutonomousCycle } = await import('./core/cycle');
+    const { runAutonomousCycle } = await import('./control/cycle');
 
     const minutes = parseInt(options.minutes);
     const maxIterations = options.iterations ? parseInt(options.iterations) : undefined;

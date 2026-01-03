@@ -12,7 +12,7 @@
  * This prevents ERR_TOOL_SCHEMA from stopping autonomous cycles on single failures.
  */
 
-import { Tool, ToolParameter } from './agent';
+import { Tool, ToolParameter } from '../work/agent';
 
 export interface ToolIntent {
   tool: string;

@@ -15,7 +15,7 @@
  * - Never give up until task is complete
  */
 
-import { loadSelf } from './self';
+import { loadSelf } from '../core/self';
 import { getMemory } from '../memory/store';
 import { complete, LLMMessage } from '../llm';
 import * as fsActions from '../actions/fs';
@@ -23,14 +23,14 @@ import * as gitActions from '../actions/git';
 import * as shellActions from '../actions/shell';
 import * as webActions from '../actions/web';
 import { getCognitiveSystem } from '../memory/cognitive';
-import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRiskLevel, recordToolCallInLoopHistory, checkForOperationalLoop, resetLoopHistory } from './metrics_v2';
+import { recordToolCallValid, recordToolCallInvalid, recordLoopDetection, ToolRiskLevel, recordToolCallInLoopHistory, checkForOperationalLoop, resetLoopHistory } from '../core/metrics_v2';
 import {
   compileToolIntent,
   formatCompilationError,
   CompilationLoopDetector,
   ToolIntent
-} from './tool_compiler';
-import { classifyToolRisk } from './risk_classifier';
+} from '../control/tool_compiler';
+import { classifyToolRisk } from '../core/risk_classifier';
 
 // ============================================================================
 // TYPES
@@ -109,7 +109,7 @@ export const TOOLS: Tool[] = [
     execute: async (params) => {
       try {
         // Check if file is protected
-        const { isFileProtected, getProtectionReason } = await import('./protected_files');
+        const { isFileProtected, getProtectionReason } = await import('../core/protected_files');
         if (isFileProtected(params.path)) {
           const reason = getProtectionReason(params.path);
           return {
@@ -486,7 +486,7 @@ SCIENTIFIC KNOWLEDGE:
     execute: async (params) => {
       try {
         // Check exploration budget (modify_self_config is RISKY)
-        const { canTakeRisk, recordAction } = await import('./exploration');
+        const { canTakeRisk, recordAction } = await import('../core/exploration');
         const budgetCheck = canTakeRisk();
 
         if (!budgetCheck.allowed) {
@@ -497,10 +497,10 @@ SCIENTIFIC KNOWLEDGE:
           };
         }
 
-        const { loadSelf, saveSelf } = await import('./self');
-        const { takeRollbackSnapshot, checkAndRollbackIfNeeded } = await import('./rollback');
-        const { preservesEntityhood } = await import('./axioms');
-        const { getMetrics } = await import('./metrics_v2');
+        const { loadSelf, saveSelf } = await import('../core/self');
+        const { takeRollbackSnapshot, checkAndRollbackIfNeeded } = await import('../core/rollback');
+        const { preservesEntityhood } = await import('../core/axioms');
+        const { getMetrics } = await import('../core/metrics_v2');
 
         const self = loadSelf();
 
@@ -647,7 +647,7 @@ SCIENTIFIC KNOWLEDGE:
 
       } catch (error: any) {
         // Record risky action as FAILED (error)
-        const { recordAction } = await import('./exploration');
+        const { recordAction } = await import('../core/exploration');
         recordAction('risky', {
           action: `modify_self_config: ${params.action} ${params.target}`,
           success: false,
@@ -847,7 +847,7 @@ export async function executeAgent(
   });
 
   // Initialize quality gate session (if first time in this execution)
-  const { initQualityGateSession, getQualityGateSessionStats } = await import('./quality_gate_integration');
+  const { initQualityGateSession, getQualityGateSessionStats } = await import('../control/quality_gate_integration');
   if (!getQualityGateSessionStats()) {
     initQualityGateSession();
   }
@@ -1035,7 +1035,7 @@ export async function executeAgent(
 
       // ==================== OPERATIONAL SAFETY GATE ====================
       // Check gate BEFORE execution (not after)
-      const { checkOperationalGate, logGateDecision, formatGateBlockMessage } = await import('./operational_gate');
+      const { checkOperationalGate, logGateDecision, formatGateBlockMessage } = await import('../control/operational_gate');
       const gateDecision = checkOperationalGate(toolName, params);
       logGateDecision(toolName, params, gateDecision);
 
@@ -1082,7 +1082,7 @@ export async function executeAgent(
 
       // ==================== QUALITY GATE (G6) ====================
       // Check code quality AFTER execution but BEFORE committing
-      const { runQualityGate, logQualityGateDecision } = await import('./quality_gate_integration');
+      const { runQualityGate, logQualityGateDecision } = await import('../control/quality_gate_integration');
       const qualityCheck = await runQualityGate(toolName, params, result);
 
       // Log decision
@@ -1121,7 +1121,7 @@ export async function executeAgent(
         console.log(`   This change needs human judgment`);
 
         // Create GitHub Issue with review questions
-        const { createIssueForReview } = await import('./quality_gate_integration');
+        const { createIssueForReview } = await import('../control/quality_gate_integration');
         if (qualityCheck.gateResult) {
           const issueResult = await createIssueForReview(toolName, params, qualityCheck.gateResult);
           if (issueResult.success) {
@@ -1139,7 +1139,7 @@ export async function executeAgent(
         console.log(`\n✅ Quality Gate: PASSED`);
 
         // Create GitHub PR
-        const { createPRForPass } = await import('./quality_gate_integration');
+        const { createPRForPass } = await import('../control/quality_gate_integration');
         if (qualityCheck.gateResult) {
           const prResult = await createPRForPass(toolName, params, qualityCheck.gateResult);
           if (prResult.success) {
@@ -1155,7 +1155,7 @@ export async function executeAgent(
       // ==================== BUDGET ACCOUNTING ====================
       // Consume exploration budget for risky actions (only after gate authorization)
       // Budget applies ONLY to write_critical and core, NOT write_normal
-      const { recordAction } = await import('./exploration');
+      const { recordAction } = await import('../core/exploration');
 
       if (riskLevel === 'write_critical' || riskLevel === 'core') {
         recordAction('risky', {
@@ -1262,7 +1262,7 @@ export async function runAgent(
     }
 
     // Track action in exploration system (safe action by default)
-    const { recordAction } = await import('./exploration');
+    const { recordAction } = await import('../core/exploration');
     recordAction('safe');
 
     return result.answer;
@@ -1270,7 +1270,7 @@ export async function runAgent(
     console.error('Agent error:', error);
 
     // Track failed action
-    const { recordAction } = await import('./exploration');
+    const { recordAction } = await import('../core/exploration');
     recordAction('safe');
 
     return `An error occurred: ${error.message}. Please try again.`;
