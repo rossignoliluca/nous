@@ -27,4 +27,8 @@ There are three possible outcomes for a PR:
 
 Each cycle is limited to a maximum of 3 PRs and 5 REVIEWs to ensure manageable workloads and maintain quality.
 
+### Stability Mode
+
+During stability mode, no governance changes should be made. This observation period is crucial for maintaining the integrity and stability of the system.
+
 Thank you for contributing to our project! Please ensure all changes adhere to these guidelines to facilitate a smooth and efficient review process.
