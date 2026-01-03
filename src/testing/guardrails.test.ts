@@ -224,8 +224,8 @@ export function registerGuardrailsTests(runner: TestRunner): void {
 
   runner.describe('Guardrails - Param-Aware Risk Classification', () => {
     test('CRITICAL: Dangerous commands classified as core risk', () => {
-      const agent_path = path.join(process.cwd(), 'src', 'core', 'agent.ts');
-      const content = fs.readFileSync(agent_path, 'utf-8');
+      const risk_classifier_path = path.join(process.cwd(), 'src', 'core', 'risk_classifier.ts');
+      const content = fs.readFileSync(risk_classifier_path, 'utf-8');
 
       // Check for dangerous command patterns (as they appear in code)
       const dangerousCommands = [
@@ -247,8 +247,8 @@ export function registerGuardrailsTests(runner: TestRunner): void {
     });
 
     test('CRITICAL: Critical files classified as core risk', () => {
-      const agent_path = path.join(process.cwd(), 'src', 'core', 'agent.ts');
-      const content = fs.readFileSync(agent_path, 'utf-8');
+      const risk_classifier_path = path.join(process.cwd(), 'src', 'core', 'risk_classifier.ts');
+      const content = fs.readFileSync(risk_classifier_path, 'utf-8');
 
       // Check for critical path patterns
       const criticalPaths = [
@@ -270,8 +270,8 @@ export function registerGuardrailsTests(runner: TestRunner): void {
     });
 
     test('Readonly operations classified correctly', () => {
-      const agent_path = path.join(process.cwd(), 'src', 'core', 'agent.ts');
-      const content = fs.readFileSync(agent_path, 'utf-8');
+      const risk_classifier_path = path.join(process.cwd(), 'src', 'core', 'risk_classifier.ts');
+      const content = fs.readFileSync(risk_classifier_path, 'utf-8');
 
       // Should classify grep, ls, cat, git status as readonly
       assert.ok(

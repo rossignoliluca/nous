@@ -12,6 +12,7 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { classifyToolRisk } from './risk_classifier';
 
 /**
  * Gate decision
@@ -437,46 +438,6 @@ export function checkOperationalGate(
     severity,
     evidence
   };
-}
-
-/**
- * Classify tool risk level (same as metrics_v2)
- */
-export function classifyToolRisk(toolName: string, params: Record<string, any>): 'readonly' | 'write_normal' | 'write_critical' | 'core' {
-  // Core: Self-modification only
-  if (toolName === 'modify_self_config') {
-    return 'core';
-  }
-
-  if (toolName === 'write_file' || toolName === 'delete_file') {
-    const filePath = params.path?.toLowerCase() || '';
-
-    // Write Critical: package.json, .env, tsconfig, lockfiles, config/self.json
-    if (filePath.match(/(^|\/)(package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|\.env|tsconfig\.json|config\/self\.json)/)) {
-      return 'write_critical';
-    }
-
-    // Write Normal: Regular files inside project
-    return 'write_normal';
-  }
-
-  if (toolName === 'run_command') {
-    const cmd = params.command?.toLowerCase() || '';
-
-    // Core: Destructive/dangerous commands (denylist)
-    if (cmd.match(/\b(rm\s+-rf?|git\s+reset\s+--hard|git\s+push\s+(-f|--force)|sudo|chmod\s+777|dd\s+if=)/)) {
-      return 'core';
-    }
-
-    // Write Normal: Mutation operations (git commit, npm install, mkdir, etc.)
-    if (cmd.match(/^(git\s+(commit|add|push|rm)|npm\s+install|mkdir|rm\s+[^-]|mv|cp|touch|echo\s+.*>)/)) {
-      return 'write_normal';
-    }
-
-    return 'readonly';
-  }
-
-  return 'readonly';
 }
 
 /**
