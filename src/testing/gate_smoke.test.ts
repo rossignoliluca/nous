@@ -199,10 +199,16 @@ export function registerGateSmokeTests(runner: TestRunner): void {
 
   runner.describe('Gate Smoke - Budget Enforcement', () => {
     test('SMOKE 3a: Budget check integrated in gate', () => {
-      // Test that gate calls budget check for write actions
+      // Test that gate calls budget check for write_critical actions
+      // Use a critical file with valid token to pass two-step confirmation
+
+      // Generate and set high-risk token
+      const token = setHighRiskToken();
+
       const decision = checkOperationalGate('write_file', {
-        path: './test.txt',
-        content: 'test'
+        path: './package.json',
+        content: 'test',
+        highRiskToken: token
       });
 
       // Should check budget (even if allowed)
