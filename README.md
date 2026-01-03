@@ -153,6 +153,10 @@ PHASE 3: Autonomous within constraints
 PHASE 4: True entity
 ```
 
+## PR-Only Autonomous Cycles and Human Merge
+
+In PR-only autonomous cycles, NOUS operates by creating pull requests (PRs) for any changes it proposes. These PRs are reviewed by human collaborators who decide whether to merge them into the main branch. This process ensures that NOUS's modifications are aligned with human oversight and project goals. Human merge is a critical step in maintaining the integrity and direction of the project while allowing NOUS to exercise its capabilities within a controlled environment.
+
 ## Relationship with Atlas
 
 Atlas is a **starting framework**, not a master.
