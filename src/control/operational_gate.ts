@@ -13,6 +13,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { classifyToolRisk } from '../core/risk_classifier';
+import { CONSTITUTION } from '../core/constitution';
 
 /**
  * Gate decision
@@ -100,7 +101,7 @@ export function setHighRiskToken(): string {
   const token = `ACK_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   highRiskToken = {
     token,
-    expiresAt: Date.now() + 60000, // 60 seconds
+    expiresAt: Date.now() + CONSTITUTION.highRiskAcknowledgement.tokenTTLSeconds * 1000, // 60 seconds
     used: false
   };
   console.log(`\n🔑 High-risk token generated: ${token}`);
@@ -266,7 +267,7 @@ export function normalizePath(filePath: string): { safe: boolean; normalized?: s
 
     // 5. Check if path contains critical project files
     const basename = path.basename(normalized);
-    const criticalFiles = ['package.json', '.env', 'tsconfig.json'];
+    const criticalFiles = [...CONSTITUTION.highRiskAcknowledgement.criticalFiles];
     if (criticalFiles.includes(basename)) {
       // Not blocking, but flagging as high-risk
       return {

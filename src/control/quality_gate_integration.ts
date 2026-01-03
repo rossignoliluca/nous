@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { classifyPatch, QualityGateInput, QualityGateResult } from './quality_gate';
 import * as shellActions from '../actions/shell';
+import { CONSTITUTION } from '../core/constitution';
 
 interface QualityGateCheck {
   shouldCheck: boolean;
@@ -36,12 +37,6 @@ interface QualityGateSession {
 
 let currentSession: QualityGateSession | null = null;
 
-const CAPS = {
-  MAX_PRS_PER_CYCLE: 3,
-  MAX_REVIEWS_PER_CYCLE: 5,
-  MAX_CONSECUTIVE_REVIEWS: 3,
-  CYCLE_DURATION_MS: 2 * 60 * 60 * 1000 // 2 hours
-};
 
 /**
  * Initialize quality gate session
@@ -55,7 +50,7 @@ export function initQualityGateSession(): void {
     startTime: Date.now()
   };
   console.log('\n🎯 Quality Gate session initialized');
-  console.log(`   Caps: ${CAPS.MAX_PRS_PER_CYCLE} PRs, ${CAPS.MAX_REVIEWS_PER_CYCLE} REVIEWs per cycle`);
+  console.log(`   Caps: ${CONSTITUTION.caps.maxPRsPerCycle} PRs, ${CONSTITUTION.caps.maxReviewsPerCycle} REVIEWs per cycle`);
 }
 
 /**
@@ -117,7 +112,7 @@ export function shouldRunQualityGate(
 
   // Check if session expired (>2h)
   const elapsed = Date.now() - currentSession!.startTime;
-  if (elapsed > CAPS.CYCLE_DURATION_MS) {
+  if (elapsed > CONSTITUTION.caps.maxDurationMinutes * 60 * 1000) {
     console.log('\n⏰ Quality Gate session expired, resetting...');
     initQualityGateSession();
   }
@@ -277,20 +272,20 @@ export async function runQualityGate(
       currentSession!.consecutiveReviews++;
 
       // Check caps
-      if (currentSession!.reviewsCreated > CAPS.MAX_REVIEWS_PER_CYCLE) {
-        console.log(`\n⚠️  REVIEW cap reached (${CAPS.MAX_REVIEWS_PER_CYCLE}), treating as REJECT`);
+      if (currentSession!.reviewsCreated > CONSTITUTION.caps.maxReviewsPerCycle) {
+        console.log(`\n⚠️  REVIEW cap reached (${CONSTITUTION.caps.maxReviewsPerCycle}), treating as REJECT`);
         return {
           decision: 'REJECT',
-          message: `Quality gate: REVIEW cap reached (${CAPS.MAX_REVIEWS_PER_CYCLE}/${CAPS.MAX_REVIEWS_PER_CYCLE})`,
+          message: `Quality gate: REVIEW cap reached (${CONSTITUTION.caps.maxReviewsPerCycle}/${CONSTITUTION.caps.maxReviewsPerCycle})`,
           gateResult
         };
       }
 
-      if (currentSession!.consecutiveReviews >= CAPS.MAX_CONSECUTIVE_REVIEWS) {
-        console.log(`\n⚠️  Consecutive REVIEW limit reached (${CAPS.MAX_CONSECUTIVE_REVIEWS}), stopping cycle`);
+      if (currentSession!.consecutiveReviews >= CONSTITUTION.caps.maxConsecutiveReviews) {
+        console.log(`\n⚠️  Consecutive REVIEW limit reached (${CONSTITUTION.caps.maxConsecutiveReviews}), stopping cycle`);
         return {
           decision: 'REJECT',
-          message: `Quality gate: Too many consecutive REVIEWs (${CAPS.MAX_CONSECUTIVE_REVIEWS}). Agent needs human guidance.`,
+          message: `Quality gate: Too many consecutive REVIEWs (${CONSTITUTION.caps.maxConsecutiveReviews}). Agent needs human guidance.`,
           gateResult
         };
       }
@@ -300,8 +295,8 @@ export async function runQualityGate(
       console.log(`\n🔍 QUALITY GATE REVIEW`);
       console.log(`   Tool: ${toolName}`);
       console.log(`   Reason: ${gateResult.reasonCodes.join(', ')}`);
-      console.log(`   Reviews this session: ${currentSession!.reviewsCreated}/${CAPS.MAX_REVIEWS_PER_CYCLE}`);
-      console.log(`   Consecutive: ${currentSession!.consecutiveReviews}/${CAPS.MAX_CONSECUTIVE_REVIEWS}`);
+      console.log(`   Reviews this session: ${currentSession!.reviewsCreated}/${CONSTITUTION.caps.maxReviewsPerCycle}`);
+      console.log(`   Consecutive: ${currentSession!.consecutiveReviews}/${CONSTITUTION.caps.maxConsecutiveReviews}`);
 
       return {
         decision: 'REVIEW',
@@ -359,11 +354,11 @@ export async function createPRForPass(
       initQualityGateSession();
     }
 
-    if (currentSession!.prsCreated >= CAPS.MAX_PRS_PER_CYCLE) {
-      console.log(`\n⚠️  PR cap reached (${CAPS.MAX_PRS_PER_CYCLE}), skipping PR creation`);
+    if (currentSession!.prsCreated >= CONSTITUTION.caps.maxPRsPerCycle) {
+      console.log(`\n⚠️  PR cap reached (${CONSTITUTION.caps.maxPRsPerCycle}), skipping PR creation`);
       return {
         success: false,
-        error: `PR cap reached (${CAPS.MAX_PRS_PER_CYCLE}/${CAPS.MAX_PRS_PER_CYCLE})`
+        error: `PR cap reached (${CONSTITUTION.caps.maxPRsPerCycle}/${CONSTITUTION.caps.maxPRsPerCycle})`
       };
     }
 
@@ -460,7 +455,7 @@ This PR was automatically created by NOUS after passing quality gate G6.
     currentSession!.prsCreated++;
 
     console.log(`   ✅ PR created: ${prUrl || 'success'}`);
-    console.log(`   PRs this session: ${currentSession!.prsCreated}/${CAPS.MAX_PRS_PER_CYCLE}`);
+    console.log(`   PRs this session: ${currentSession!.prsCreated}/${CONSTITUTION.caps.maxPRsPerCycle}`);
 
     return { success: true, prUrl };
   } catch (error: any) {

@@ -9,6 +9,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { CONSTITUTION } from '../core/constitution';
 
 export interface MicroTask {
   id: string;
@@ -140,34 +141,16 @@ export function removeTask(queue: TaskQueue, taskId: string): TaskQueue {
 export function isProtectedFile(filePath: string): boolean {
   const normalized = filePath.toLowerCase();
 
-  // Path-based protection: entire control-plane directory
-  if (normalized.includes('src/control/')) {
-    return true;
+  // Path-based protection: check glob patterns first
+  for (const glob of CONSTITUTION.protectedSurface.protectedGlobs) {
+    const pattern = glob.toLowerCase().replace('**', '');
+    if (normalized.includes(pattern)) {
+      return true;
+    }
   }
 
-  const protectedPatterns = [
-    // Core axioms and gates
-    'axiom',
-    'operational_gate',
-    'quality_gate.ts', // The gate itself, not integration
-    'safety_gate',
-    'silence',
-
-    // Cycle runner (control plane) - kept for backward compatibility
-    'cycle.ts',
-    'task_queue.ts',
-    'tool_compiler.ts',
-    'critical_events.ts',
-
-    // Trust and metrics core
-    'metrics_v2.ts',
-    'trust',
-
-    // Configuration
-    'package.json',
-    '.env',
-    'tsconfig.json'
-  ];
-
-  return protectedPatterns.some(pattern => normalized.includes(pattern));
+  // Pattern-based protection: fallback for backward compatibility
+  return CONSTITUTION.protectedSurface.protectedPatterns.some(pattern =>
+    normalized.includes(pattern.toLowerCase())
+  );
 }

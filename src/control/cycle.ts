@@ -35,6 +35,7 @@ import { loadTaskQueue, generateDefaultTasks, getNextTask, removeTask, isProtect
 import { getQualityGateSessionStats, initQualityGateSession } from './quality_gate_integration';
 import { logCriticalEvent } from './critical_events';
 import { getExplorationStatus } from '../core/exploration';
+import { CONSTITUTION } from '../core/constitution';
 
 /**
  * Cycle options
@@ -242,8 +243,8 @@ function printCycleReport(report: CycleReport): void {
  * Run autonomous cycle
  */
 export async function runAutonomousCycle(options: CycleOptions = {}): Promise<CycleReport> {
-  const MAX_ITERATIONS = options.maxIterations || 40;
-  const MAX_DURATION_MINUTES = options.maxDurationMinutes || 120;
+  const MAX_ITERATIONS = options.maxIterations || CONSTITUTION.caps.maxIterationsPerCycle;
+  const MAX_DURATION_MINUTES = options.maxDurationMinutes || CONSTITUTION.caps.maxDurationMinutes;
   const MAX_DURATION_MS = MAX_DURATION_MINUTES * 60 * 1000;
 
   const cycleId = new Date().toISOString().replace(/[:.]/g, '-');
@@ -421,8 +422,8 @@ export async function runAutonomousCycle(options: CycleOptions = {}): Promise<Cy
         console.log(`✅ Task completed: PASS\n`);
 
         // Check PR cap
-        if (qgStats.prsCreated >= 3) {
-          stopReason = 'PR cap reached (3/3)';
+        if (qgStats.prsCreated >= CONSTITUTION.caps.maxPRsPerCycle) {
+          stopReason = `PR cap reached (${qgStats.prsCreated}/${CONSTITUTION.caps.maxPRsPerCycle})`;
           queue = removeTask(queue, task.id);
           break;
         }
@@ -438,15 +439,15 @@ export async function runAutonomousCycle(options: CycleOptions = {}): Promise<Cy
         console.log(`📋 Task completed: REVIEW\n`);
 
         // Check consecutive REVIEWs
-        if (qgStats.consecutiveReviews >= 3) {
-          stopReason = '3 consecutive REVIEW outcomes';
+        if (qgStats.consecutiveReviews >= CONSTITUTION.caps.maxConsecutiveReviews) {
+          stopReason = `${CONSTITUTION.caps.maxConsecutiveReviews} consecutive REVIEW outcomes`;
           queue = removeTask(queue, task.id);
           break;
         }
 
         // Check REVIEW cap
-        if (qgStats.reviewsCreated >= 5) {
-          stopReason = 'REVIEW cap reached (5/5)';
+        if (qgStats.reviewsCreated >= CONSTITUTION.caps.maxReviewsPerCycle) {
+          stopReason = `REVIEW cap reached (${qgStats.reviewsCreated}/${CONSTITUTION.caps.maxReviewsPerCycle})`;
           queue = removeTask(queue, task.id);
           break;
         }
