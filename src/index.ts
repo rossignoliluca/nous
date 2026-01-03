@@ -435,6 +435,7 @@ program
   .option('-m, --minutes <minutes>', 'Maximum duration in minutes', '120')
   .option('-i, --iterations <max>', 'Maximum iterations', '40')
   .option('-q, --queue <path>', 'Path to task queue JSON file')
+  .option('-b, --baseline', 'Baseline mode: bypass quality gate (Safety + Budget only)')
   .action(async (options) => {
     // Check for API key
     if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
@@ -452,8 +453,74 @@ program
     await runAutonomousCycle({
       maxDurationMinutes: minutes,
       maxIterations,
-      queuePath: options.queue
+      queuePath: options.queue,
+      baselineMode: options.baseline || false
     });
+  });
+
+// Replay auditor command (read-only verification)
+program
+  .command('audit')
+  .description('Audit a cycle report (read-only, deterministic PASS/FAIL)')
+  .option('-c, --cycle <path>', 'Path to cycle report JSON file (required)')
+  .option('-o, --output <path>', 'Output path for audit report JSON')
+  .action(async (options) => {
+    if (!options.cycle) {
+      console.error('Error: --cycle <path> is required');
+      console.error('Example: nous audit --cycle data/cycles/cycle-2026-01-03T09-26-37-237Z.json');
+      process.exit(1);
+    }
+
+    // Import replay auditor
+    const { loadCycleReport, auditCycle, printAuditReport, saveAuditReport } = await import('./control/replay_auditor');
+
+    const report = loadCycleReport(options.cycle);
+    if (!report) {
+      console.error('Failed to load cycle report');
+      process.exit(1);
+    }
+
+    const audit = auditCycle(report);
+    printAuditReport(audit);
+    saveAuditReport(audit, options.output);
+
+    // Exit with non-zero code if audit failed
+    if (audit.verdict === 'FAIL') {
+      process.exit(1);
+    }
+  });
+
+// A/B comparison command (Full vs Baseline)
+program
+  .command('ab')
+  .description('A/B comparison: Full vs Baseline (scientific evaluation)')
+  .option('-q, --queue <path>', 'Path to task queue JSON file (required)')
+  .option('-n, --cycles <num>', 'Number of cycles per condition', '3')
+  .option('-i, --iterations <max>', 'Max iterations per cycle', '5')
+  .option('-o, --output <path>', 'Output path for AB result JSON')
+  .action(async (options) => {
+    if (!options.queue) {
+      console.error('Error: --queue <path> is required');
+      console.error('Example: nous ab --queue data/queue/tasks.json --cycles 5');
+      process.exit(1);
+    }
+
+    // Check for API key
+    if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+      console.error('Error: No API key found.');
+      console.error('Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment.');
+      process.exit(1);
+    }
+
+    // Import AB comparison
+    const { runABComparison, printABComparison, saveABComparison } = await import('./control/ab_comparison');
+
+    const cycles = parseInt(options.cycles);
+    const maxIterations = parseInt(options.iterations);
+
+    const result = await runABComparison(options.queue, cycles, maxIterations);
+    printABComparison(result);
+    saveABComparison(result, options.output);
   });
 
 // Parse and run

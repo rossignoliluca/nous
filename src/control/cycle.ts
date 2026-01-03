@@ -44,6 +44,7 @@ export interface CycleOptions {
   maxIterations?: number;
   maxDurationMinutes?: number;
   queuePath?: string;
+  baselineMode?: boolean;
 }
 
 /**
@@ -61,7 +62,7 @@ interface TaskResult {
 /**
  * Cycle report
  */
-interface CycleReport {
+export interface CycleReport {
   cycleId: string;
   startTime: string;
   endTime: string;
@@ -368,7 +369,8 @@ export async function runAutonomousCycle(options: CycleOptions = {}): Promise<Cy
         5,
         [],
         5 * 60 * 1000,
-        task.context // Pass facts, constraints, file, type, rule
+        task.context, // Pass facts, constraints, file, type, rule
+        options.baselineMode // Baseline mode: bypass quality gate
       );
 
       if (!agentResult.success) {

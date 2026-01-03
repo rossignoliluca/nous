@@ -174,11 +174,14 @@ async function generateDiff(
 
 /**
  * Run quality gate on tool execution
+ *
+ * @param baselineMode - If true, bypass quality gate logic (always PASS)
  */
 export async function runQualityGate(
   toolName: string,
   params: Record<string, any>,
-  result: { success: boolean; output: string; error?: string }
+  result: { success: boolean; output: string; error?: string },
+  baselineMode?: boolean
 ): Promise<{
   decision: 'PASS' | 'REJECT' | 'REVIEW' | 'SKIP';
   message: string;
@@ -198,6 +201,18 @@ export async function runQualityGate(
     return {
       decision: 'SKIP',
       message: 'Tool execution failed, skipping quality gate'
+    };
+  }
+
+  // ============ BASELINE MODE: BYPASS QUALITY GATE ============
+  // Baseline mode: Safety + Budget enforced, but no quality judgment
+  if (baselineMode) {
+    console.log('\n🔓 Baseline mode: Quality Gate bypassed (always PASS)');
+    currentSession!.consecutiveReviews = 0;
+    return {
+      decision: 'PASS',
+      message: 'Baseline mode: Quality gate bypassed',
+      gateResult: undefined
     };
   }
 

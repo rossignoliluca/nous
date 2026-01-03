@@ -29,3 +29,5 @@ sandbox/
 data/cycles/
 data/critical_events/
 data/quality_gate/
+data/audits/
+data/ab_comparisons/

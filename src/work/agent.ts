@@ -854,7 +854,8 @@ export async function executeAgent(
   maxIterations: number = 15,
   conversationHistory?: Array<{ role: string; content: string }>,
   maxDurationMs?: number,
-  taskContext?: AgentTaskContext
+  taskContext?: AgentTaskContext,
+  baselineMode?: boolean
 ): Promise<AgentResult> {
   const steps: AgentStep[] = [];
   let tokensUsed = 0;
@@ -1117,7 +1118,7 @@ export async function executeAgent(
       // ==================== QUALITY GATE (G6) ====================
       // Check code quality AFTER execution but BEFORE committing
       const { runQualityGate, logQualityGateDecision } = await import('../control/quality_gate_integration');
-      const qualityCheck = await runQualityGate(toolName, params, result);
+      const qualityCheck = await runQualityGate(toolName, params, result, baselineMode);
 
       // Log decision
       if (qualityCheck.decision !== 'SKIP') {
